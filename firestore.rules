@@ -1,0 +1,59 @@
+rules_version = '2';
+
+// Security model: every document stores an `ownerId` equal to the creating
+// user's Firebase Auth UID. A user may only read/write documents they own.
+// This satisfies the requirement that users can only access their own data.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Signed-in helper.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // The document belongs to the requesting user.
+    function ownsExisting() {
+      return isSignedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // The incoming document is being written with the requester as owner.
+    function ownsIncoming() {
+      return isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+    }
+
+    // The user profile document: keyed by the user's own UID.
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // The single company profile / settings document per user, keyed by UID.
+    match /settings/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Generic owner-scoped collections.
+    match /customers/{docId}  { allow read, delete: if ownsExisting();
+                                allow create, update: if ownsIncoming(); }
+    match /jobs/{docId}       { allow read, delete: if ownsExisting();
+                                allow create, update: if ownsIncoming(); }
+    match /quotes/{docId}     { allow read, delete: if ownsExisting();
+                                allow create, update: if ownsIncoming(); }
+    match /invoices/{docId}   { allow read, delete: if ownsExisting();
+                                allow create, update: if ownsIncoming(); }
+    match /invoice_items/{docId} { allow read, delete: if ownsExisting();
+                                   allow create, update: if ownsIncoming(); }
+    match /payments/{docId}   { allow read, delete: if ownsExisting();
+                                allow create, update: if ownsIncoming(); }
+    match /expenses/{docId}   { allow read, delete: if ownsExisting();
+                                allow create, update: if ownsIncoming(); }
+    match /documents/{docId}  { allow read, delete: if ownsExisting();
+                                allow create, update: if ownsIncoming(); }
+    match /photos/{docId}     { allow read, delete: if ownsExisting();
+                                allow create, update: if ownsIncoming(); }
+
+    // Default deny everything else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

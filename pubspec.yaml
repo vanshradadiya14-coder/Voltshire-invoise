@@ -1,0 +1,74 @@
+name: builder_crm
+description: Professional CRM & Invoice app for a UK building company.
+publish_to: "none"
+
+# App version. Bump build number (after +) on each store release.
+version: 1.0.0+1
+
+# Uses recent Flutter APIs (Color.withValues, CardThemeData), so a current
+# stable Flutter (3.32+) is required.
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.32.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ---- State management ----
+  flutter_riverpod: ^2.5.1
+
+  # ---- Firebase ----
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  firebase_storage: ^12.3.4
+
+  # ---- Routing ----
+  go_router: ^14.2.7
+
+  # ---- PDF & printing ----
+  pdf: ^3.11.1
+  printing: ^5.13.3
+
+  # ---- Sharing ----
+  share_plus: ^10.0.2
+
+  # ---- Media / files ----
+  image_picker: ^1.1.2
+  file_picker: ^8.1.2
+  cached_network_image: ^3.4.1
+  path_provider: ^2.1.4
+
+  # ---- Utilities ----
+  intl: ^0.20.0
+  uuid: ^4.5.1
+  url_launcher: ^6.3.0
+  shared_preferences: ^2.3.2
+  collection: ^1.18.0
+
+  # Material icons
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  # App assets. The images/ folder holds an optional placeholder logo.
+  assets:
+    - assets/images/
+
+  # To bundle a custom font (so PDF output is byte-identical across devices),
+  # drop the .ttf files into assets/fonts/, then uncomment and adjust the block
+  # below and set `fontFamily: 'AppFont'` in lib/theme/app_theme.dart.
+  #
+  # fonts:
+  #   - family: AppFont
+  #     fonts:
+  #       - asset: assets/fonts/Roboto-Regular.ttf
+  #       - asset: assets/fonts/Roboto-Bold.ttf
+  #         weight: 700

@@ -1,0 +1,23 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # Treat missing awaits and dead code as errors to keep the codebase clean.
+    unawaited_futures: warning
+    invalid_annotation_target: ignore
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "lib/firebase/firebase_options.dart"
+
+linter:
+  rules:
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    prefer_final_locals: true
+    avoid_print: true
+    always_use_package_imports: false
+    prefer_single_quotes: true
+    require_trailing_commas: true
+    sort_child_properties_last: true
+    use_key_in_widget_constructors: true

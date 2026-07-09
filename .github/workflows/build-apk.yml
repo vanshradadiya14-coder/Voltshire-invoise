@@ -1,0 +1,50 @@
+name: Build Android APK
+
+# Builds a release APK in the cloud on every push, and lets you trigger a
+# build manually from the Actions tab. No local Flutter install needed.
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java (needed by the Android build)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter (latest stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate the Android project files
+        run: flutter create --platforms=android .
+
+      - name: Raise minSdk to 23 (required by Firebase)
+        run: |
+          kts=android/app/build.gradle.kts
+          gradle=android/app/build.gradle
+          [ -f "$kts" ] && sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/' "$kts" || true
+          [ -f "$gradle" ] && sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/' "$gradle" || true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build the release APK
+        run: flutter build apk --release
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: builder-crm-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error

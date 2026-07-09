@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// Files are stored under users/{uid}/... so a user can only touch their own
+// uploads (logos, receipt photos, job photos, documents).
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == userId
+        // Limit uploads to 15 MB to protect quota.
+        && (request.resource == null || request.resource.size < 15 * 1024 * 1024);
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
