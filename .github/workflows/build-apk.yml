@@ -29,12 +29,22 @@ jobs:
       - name: Generate the Android project files
         run: flutter create --platforms=android .
 
-      - name: Raise minSdk to 23 (required by Firebase)
+      - name: Set Android SDK versions (Firebase needs minSdk 23; plugins need compileSdk 36)
         run: |
           kts=android/app/build.gradle.kts
           gradle=android/app/build.gradle
-          [ -f "$kts" ] && sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/' "$kts" || true
-          [ -f "$gradle" ] && sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/' "$gradle" || true
+          if [ -f "$kts" ]; then
+            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/' "$kts"
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' "$kts"
+            sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/' "$kts"
+          fi
+          if [ -f "$gradle" ]; then
+            sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/' "$gradle"
+            sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/' "$gradle"
+            sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 36/' "$gradle"
+          fi
+          echo "----- build.gradle.kts after patch -----"
+          cat "$kts" 2>/dev/null | grep -E 'Sdk' || true
 
       - name: Install dependencies
         run: flutter pub get
