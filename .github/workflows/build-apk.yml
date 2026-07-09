@@ -29,22 +29,35 @@ jobs:
       - name: Generate the Android project files
         run: flutter create --platforms=android .
 
-      - name: Set Android SDK versions (Firebase needs minSdk 23; plugins need compileSdk 36)
+      - name: Set Android SDK versions (Firebase minSdk 23; force compileSdk 36 everywhere)
         run: |
-          kts=android/app/build.gradle.kts
-          gradle=android/app/build.gradle
-          if [ -f "$kts" ]; then
-            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/' "$kts"
-            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' "$kts"
-            sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/' "$kts"
+          app=android/app/build.gradle.kts
+          if [ -f "$app" ]; then
+            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/' "$app"
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' "$app"
+            sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/' "$app"
           fi
-          if [ -f "$gradle" ]; then
-            sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/' "$gradle"
-            sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/' "$gradle"
-            sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 36/' "$gradle"
+          # Force EVERY Android module (app + all plugins) to compile against
+          # SDK 36. Some plugins hardcode an older compileSdk, so an app-level
+          # bump alone is not enough.
+          proj=android/build.gradle.kts
+          if [ -f "$proj" ]; then
+            {
+              echo ""
+              echo "subprojects {"
+              echo "    afterEvaluate {"
+              echo "        val androidExtension = project.extensions.findByName(\"android\")"
+              echo "        if (androidExtension is com.android.build.gradle.BaseExtension) {"
+              echo "            androidExtension.compileSdkVersion(36)"
+              echo "        }"
+              echo "    }"
+              echo "}"
+            } >> "$proj"
           fi
-          echo "----- build.gradle.kts after patch -----"
-          cat "$kts" 2>/dev/null | grep -E 'Sdk' || true
+          echo "----- app build.gradle.kts Sdk lines -----"
+          grep -E 'Sdk' "$app" || true
+          echo "----- project build.gradle.kts tail -----"
+          tail -12 "$proj" || true
 
       - name: Install dependencies
         run: flutter pub get
