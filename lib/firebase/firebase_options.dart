@@ -1,14 +1,8 @@
-// GENERATED FILE — PLACEHOLDER.
+// Firebase configuration for the "voltshire" project.
 //
-// Replace this file by running:
-//
-//   dart pub global activate flutterfire_cli
-//   flutterfire configure
-//
-// That command creates a real `firebase_options.dart` wired to your Firebase
-// project and downloads the platform config files (google-services.json /
-// GoogleService-Info.plist). Until then the values below are dummies so the
-// project still compiles — the app will fail to reach Firebase at runtime.
+// Android values are real (from the Firebase console). iOS/Web reuse the same
+// project; if you later build for those platforms, regenerate this file with
+// `flutterfire configure` to get their correct appIds.
 //
 // ignore_for_file: type=lint
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
@@ -30,30 +24,29 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // ⚠️  DUMMY VALUES — overwrite via `flutterfire configure`.
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'REPLACE_ME',
-    appId: '1:000000000000:android:0000000000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: 'your-project-id',
-    storageBucket: 'your-project-id.appspot.com',
+    apiKey: 'AIzaSyCkUxfg0_8J8IARLaXoM3DzbfPx284ZG0E',
+    appId: '1:128975017290:android:1c8d46da504384ede45db3',
+    messagingSenderId: '128975017290',
+    projectId: 'voltshire',
+    storageBucket: 'voltshire.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'REPLACE_ME',
-    appId: '1:000000000000:ios:0000000000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: 'your-project-id',
-    storageBucket: 'your-project-id.appspot.com',
+    apiKey: 'AIzaSyCkUxfg0_8J8IARLaXoM3DzbfPx284ZG0E',
+    appId: '1:128975017290:android:1c8d46da504384ede45db3',
+    messagingSenderId: '128975017290',
+    projectId: 'voltshire',
+    storageBucket: 'voltshire.firebasestorage.app',
     iosBundleId: 'com.example.builderCrm',
   );
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'REPLACE_ME',
-    appId: '1:000000000000:web:0000000000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: 'your-project-id',
-    storageBucket: 'your-project-id.appspot.com',
-    authDomain: 'your-project-id.firebaseapp.com',
+    apiKey: 'AIzaSyCkUxfg0_8J8IARLaXoM3DzbfPx284ZG0E',
+    appId: '1:128975017290:android:1c8d46da504384ede45db3',
+    messagingSenderId: '128975017290',
+    projectId: 'voltshire',
+    storageBucket: 'voltshire.firebasestorage.app',
+    authDomain: 'voltshire.firebaseapp.com',
   );
 }
