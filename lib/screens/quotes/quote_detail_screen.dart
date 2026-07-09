@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/utils/formatters.dart';
 import '../../models/company_profile.dart';
+import '../../models/enums.dart';
 import '../../models/invoice.dart';
 import '../../models/quote.dart';
 import '../../pdf/document_pdf.dart';
