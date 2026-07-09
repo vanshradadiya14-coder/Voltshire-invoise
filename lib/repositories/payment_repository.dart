@@ -21,14 +21,19 @@ class PaymentRepository {
 
   Query<Map<String, dynamic>> get _owned => _col.where('ownerId', isEqualTo: _uid);
 
-  Stream<List<Payment>> watchAll() =>
-      _owned.orderBy('date', descending: true).snapshots().map(_mapDocs);
+  // Sorted/filtered on-device so no Firestore composite index is required.
+  Stream<List<Payment>> _watchOwned() => _owned.snapshots().map((snap) {
+        final List<Payment> list = _mapDocs(snap);
+        list.sort((Payment a, Payment b) =>
+            (b.date ?? DateTime(0)).compareTo(a.date ?? DateTime(0)));
+        return list;
+      });
 
-  Stream<List<Payment>> watchForInvoice(String invoiceId) => _owned
-      .where('invoiceId', isEqualTo: invoiceId)
-      .orderBy('date', descending: true)
-      .snapshots()
-      .map(_mapDocs);
+  Stream<List<Payment>> watchAll() => _watchOwned();
+
+  Stream<List<Payment>> watchForInvoice(String invoiceId) => _watchOwned().map(
+      (List<Payment> l) =>
+          l.where((Payment p) => p.invoiceId == invoiceId).toList());
 
   /// Records a payment and increases the invoice's `amountPaid` atomically.
   Future<String> addPayment(Payment payment) async {

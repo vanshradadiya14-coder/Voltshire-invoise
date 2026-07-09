@@ -22,14 +22,19 @@ class DocumentRepository {
 
   Query<Map<String, dynamic>> get _owned => _col.where('ownerId', isEqualTo: _uid);
 
-  Stream<List<DocumentFile>> watchAll() =>
-      _owned.orderBy('createdAt', descending: true).snapshots().map(_mapDocs);
+  // Sorted/filtered on-device so no Firestore composite index is required.
+  Stream<List<DocumentFile>> _watchOwned() => _owned.snapshots().map((snap) {
+        final List<DocumentFile> list = _mapDocs(snap);
+        list.sort((DocumentFile a, DocumentFile b) =>
+            (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
+        return list;
+      });
 
-  Stream<List<DocumentFile>> watchForJob(String jobId) => _owned
-      .where('jobId', isEqualTo: jobId)
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map(_mapDocs);
+  Stream<List<DocumentFile>> watchAll() => _watchOwned();
+
+  Stream<List<DocumentFile>> watchForJob(String jobId) => _watchOwned().map(
+      (List<DocumentFile> l) =>
+          l.where((DocumentFile d) => d.jobId == jobId).toList());
 
   Future<String> add({
     required File file,

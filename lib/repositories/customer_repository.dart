@@ -18,9 +18,14 @@ class CustomerRepository {
   Query<Map<String, dynamic>> get _owned =>
       _col.where('ownerId', isEqualTo: _uid);
 
-  /// All customers, sorted alphabetically.
+  /// All customers, sorted alphabetically on-device (so no Firestore composite
+  /// index is required).
   Stream<List<Customer>> watchAll() {
-    return _owned.orderBy('nameLower').snapshots().map(_mapDocs);
+    return _owned.snapshots().map((snap) {
+      final List<Customer> list = _mapDocs(snap);
+      list.sort((Customer a, Customer b) => a.nameLower.compareTo(b.nameLower));
+      return list;
+    });
   }
 
   Stream<Customer?> watchById(String id) {
@@ -33,19 +38,16 @@ class CustomerRepository {
     return d.exists ? Customer.fromMap(d.id, d.data()!) : null;
   }
 
-  /// Case-insensitive prefix search on the customer name.
+  /// Case-insensitive search on name / phone / email (filtered on-device).
   Stream<List<Customer>> search(String term) {
     final String q = term.toLowerCase().trim();
     if (q.isEmpty) return watchAll();
-    // U+F8FF is a very high private-use code point, so the range [q, q+high]
-    // matches every name that begins with `q`.
-    final String high = q + String.fromCharCode(0xf8ff);
-    return _owned
-        .orderBy('nameLower')
-        .startAt(<Object>[q])
-        .endAt(<Object>[high])
-        .snapshots()
-        .map(_mapDocs);
+    return watchAll().map((List<Customer> list) => list
+        .where((Customer c) =>
+            c.nameLower.contains(q) ||
+            c.phone.contains(q) ||
+            c.email.toLowerCase().contains(q))
+        .toList());
   }
 
   Future<String> create(Customer customer) async {

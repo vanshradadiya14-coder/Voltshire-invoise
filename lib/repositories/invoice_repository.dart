@@ -20,20 +20,22 @@ class InvoiceRepository {
 
   Query<Map<String, dynamic>> get _owned => _col.where('ownerId', isEqualTo: _uid);
 
-  Stream<List<Invoice>> watchAll() =>
-      _owned.orderBy('issueDate', descending: true).snapshots().map(_mapDocs);
+  // Sorted/filtered on-device so no Firestore composite index is required.
+  Stream<List<Invoice>> _watchOwned() => _owned.snapshots().map((snap) {
+        final List<Invoice> list = _mapDocs(snap);
+        list.sort((Invoice a, Invoice b) =>
+            (b.issueDate ?? DateTime(0)).compareTo(a.issueDate ?? DateTime(0)));
+        return list;
+      });
 
-  Stream<List<Invoice>> watchByStatus(InvoiceStatus status) => _owned
-      .where('status', isEqualTo: status.name)
-      .orderBy('issueDate', descending: true)
-      .snapshots()
-      .map(_mapDocs);
+  Stream<List<Invoice>> watchAll() => _watchOwned();
 
-  Stream<List<Invoice>> watchForCustomer(String customerId) => _owned
-      .where('customerId', isEqualTo: customerId)
-      .orderBy('issueDate', descending: true)
-      .snapshots()
-      .map(_mapDocs);
+  Stream<List<Invoice>> watchByStatus(InvoiceStatus status) => _watchOwned().map(
+      (List<Invoice> l) => l.where((Invoice i) => i.status == status).toList());
+
+  Stream<List<Invoice>> watchForCustomer(String customerId) => _watchOwned().map(
+      (List<Invoice> l) =>
+          l.where((Invoice i) => i.customerId == customerId).toList());
 
   Stream<Invoice?> watchById(String id) => _col.doc(id).snapshots().map(
       (DocumentSnapshot<Map<String, dynamic>> d) =>

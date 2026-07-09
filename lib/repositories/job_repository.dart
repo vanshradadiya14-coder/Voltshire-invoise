@@ -18,20 +18,21 @@ class JobRepository {
 
   Query<Map<String, dynamic>> get _owned => _col.where('ownerId', isEqualTo: _uid);
 
-  Stream<List<Job>> watchAll() =>
-      _owned.orderBy('createdAt', descending: true).snapshots().map(_mapDocs);
+  // Sorted/filtered on-device so no Firestore composite index is required.
+  Stream<List<Job>> _watchOwned() => _owned.snapshots().map((snap) {
+        final List<Job> list = _mapDocs(snap);
+        list.sort((Job a, Job b) =>
+            (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
+        return list;
+      });
 
-  Stream<List<Job>> watchByStatus(JobStatus status) => _owned
-      .where('status', isEqualTo: status.name)
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map(_mapDocs);
+  Stream<List<Job>> watchAll() => _watchOwned();
 
-  Stream<List<Job>> watchForCustomer(String customerId) => _owned
-      .where('customerId', isEqualTo: customerId)
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map(_mapDocs);
+  Stream<List<Job>> watchByStatus(JobStatus status) => _watchOwned()
+      .map((List<Job> l) => l.where((Job j) => j.status == status).toList());
+
+  Stream<List<Job>> watchForCustomer(String customerId) => _watchOwned().map(
+      (List<Job> l) => l.where((Job j) => j.customerId == customerId).toList());
 
   Stream<Job?> watchById(String id) => _col.doc(id).snapshots().map(
       (DocumentSnapshot<Map<String, dynamic>> d) =>

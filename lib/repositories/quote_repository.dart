@@ -21,14 +21,18 @@ class QuoteRepository {
 
   Query<Map<String, dynamic>> get _owned => _col.where('ownerId', isEqualTo: _uid);
 
-  Stream<List<Quote>> watchAll() =>
-      _owned.orderBy('issueDate', descending: true).snapshots().map(_mapDocs);
+  // Sorted/filtered on-device so no Firestore composite index is required.
+  Stream<List<Quote>> _watchOwned() => _owned.snapshots().map((snap) {
+        final List<Quote> list = _mapDocs(snap);
+        list.sort((Quote a, Quote b) =>
+            (b.issueDate ?? DateTime(0)).compareTo(a.issueDate ?? DateTime(0)));
+        return list;
+      });
 
-  Stream<List<Quote>> watchForCustomer(String customerId) => _owned
-      .where('customerId', isEqualTo: customerId)
-      .orderBy('issueDate', descending: true)
-      .snapshots()
-      .map(_mapDocs);
+  Stream<List<Quote>> watchAll() => _watchOwned();
+
+  Stream<List<Quote>> watchForCustomer(String customerId) => _watchOwned().map(
+      (List<Quote> l) => l.where((Quote q) => q.customerId == customerId).toList());
 
   Stream<Quote?> watchById(String id) => _col.doc(id).snapshots().map(
       (DocumentSnapshot<Map<String, dynamic>> d) =>

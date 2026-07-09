@@ -22,11 +22,15 @@ class PhotoRepository {
 
   Query<Map<String, dynamic>> get _owned => _col.where('ownerId', isEqualTo: _uid);
 
-  Stream<List<JobPhoto>> watchForJob(String jobId) => _owned
-      .where('jobId', isEqualTo: jobId)
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map(_mapDocs);
+  // Filtered/sorted on-device so no Firestore composite index is required.
+  Stream<List<JobPhoto>> watchForJob(String jobId) =>
+      _owned.snapshots().map((snap) {
+        final List<JobPhoto> list =
+            _mapDocs(snap).where((JobPhoto p) => p.jobId == jobId).toList();
+        list.sort((JobPhoto a, JobPhoto b) =>
+            (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
+        return list;
+      });
 
   /// Uploads [file] and creates the photo record.
   Future<String> add({

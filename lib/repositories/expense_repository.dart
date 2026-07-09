@@ -21,14 +21,18 @@ class ExpenseRepository {
 
   Query<Map<String, dynamic>> get _owned => _col.where('ownerId', isEqualTo: _uid);
 
-  Stream<List<Expense>> watchAll() =>
-      _owned.orderBy('date', descending: true).snapshots().map(_mapDocs);
+  // Sorted/filtered on-device so no Firestore composite index is required.
+  Stream<List<Expense>> _watchOwned() => _owned.snapshots().map((snap) {
+        final List<Expense> list = _mapDocs(snap);
+        list.sort((Expense a, Expense b) =>
+            (b.date ?? DateTime(0)).compareTo(a.date ?? DateTime(0)));
+        return list;
+      });
 
-  Stream<List<Expense>> watchForJob(String jobId) => _owned
-      .where('jobId', isEqualTo: jobId)
-      .orderBy('date', descending: true)
-      .snapshots()
-      .map(_mapDocs);
+  Stream<List<Expense>> watchAll() => _watchOwned();
+
+  Stream<List<Expense>> watchForJob(String jobId) => _watchOwned()
+      .map((List<Expense> l) => l.where((Expense e) => e.jobId == jobId).toList());
 
   Future<String> create(Expense expense, {File? receipt}) async {
     final String id = _uuid.v4();
