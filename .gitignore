@@ -75,12 +75,12 @@ unlinked_spec.ds
 **/ios/Runner/GeneratedPluginRegistrant.*
 
 # ---- Firebase per-app config ----
-# These contain client keys (safe-ish) but are environment-specific; regenerate
-# them with `flutterfire configure`. Un-ignore if you prefer to commit them.
-google-services.json
-GoogleService-Info.plist
+# Committed on purpose: the CI build has no local Firebase login, so these
+# real per-app config files (client keys, safe-ish) must ship in the repo.
+# Overwrite them by running `flutterfire configure` if you rotate the project.
+# google-services.json
+# GoogleService-Info.plist
 # Note: lib/firebase/firebase_options.dart IS committed so the project compiles.
-# Overwrite it by running `flutterfire configure`.
 
 # Exceptions to version control
 !**/ios/**/default.mode1v3
