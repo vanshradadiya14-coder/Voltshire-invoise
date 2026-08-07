@@ -1,11 +1,53 @@
 # Builder CRM & Invoice App
 
-A professional, production-ready **Flutter** application for a UK building
-company (single business owner). Manage customers, jobs, quotations, invoices,
-payments, expenses, photos and documents — with **Firebase** backend, **offline
-support**, **Material 3** light/dark themes and **PDF invoice generation**.
+**v2.0** · A production-ready **Flutter** application for a UK building company.
+Manage customers, jobs, quotations, invoices, payments, expenses, photos and
+documents — with a **Firebase** backend, **offline support**, **Material 3**
+light/dark themes, **PDF generation**, an **analytics dashboard** and a
+**subscription model**.
 
 Built for Android **and** iOS from one codebase.
+
+See [`UPGRADE_PLAN.md`](UPGRADE_PLAN.md) for the v2 audit, architecture
+decisions and what was deliberately deferred.
+
+---
+
+## What's new in 2.0
+
+- **Subscriptions** — Free / Pro / Business tiers via RevenueCat, behind a
+  `BillingService` interface so tests and CI never touch a store. 14-day trial,
+  restore purchases, offline entitlement cache.
+- **Advanced dashboard** — period selector (day → year → custom) with
+  period-over-period deltas, revenue trend, cash-flow bars, expense donut, job
+  pipeline, top customers, and an **action centre** that surfaces overdue
+  invoices, expiring quotes and completed-but-unbilled jobs.
+- **Customisable layout** — drag to reorder dashboard sections, hide the ones
+  you never look at.
+- **Observability** — Crashlytics, Analytics, a global error boundary and
+  user-facing error messages instead of raw exception strings.
+- **Data safety** — 30-day recycle bin, CSV export, biometric app lock, offline
+  banner, and Firestore rules with field validation and `ownerId` immutability.
+- **Tests + CI** — unit tests for the money maths, entitlements, period
+  arithmetic and layout persistence; widget tests for the paywall; GitHub
+  Actions runs `analyze` + `test` on every push and gates the APK build.
+- **Brand** — launcher icon, adaptive icon and splash generated from the app
+  logo; design-token system (spacing, radii, motion, breakpoints) driving a
+  reworked Material 3 theme.
+
+### Subscription tiers
+
+| | Free | Pro | Business |
+|---|---|---|---|
+| Customers / jobs / documents | 5 each | Unlimited | Unlimited |
+| Job photos | 10 | Unlimited | Unlimited |
+| PDF | Watermarked | Your logo | Full custom |
+| Dashboard charts & reports | — | Yes | Yes |
+| CSV export | — | Yes | Yes + accounting |
+| Recurring invoices, reminders, team seats | — | — | Yes |
+
+Limits apply to **creation only**. Downgrading never hides or deletes data you
+already have.
 
 ---
 
@@ -134,9 +176,46 @@ firebase deploy --only firestore:rules,firestore:indexes,storage
 (Or paste `firestore.rules` and `storage.rules` into the console, and let the
 app prompt you to create indexes on first use.)
 
-### 6. Run
+### 6. Generate the icon and splash
+```bash
+dart run flutter_launcher_icons
+dart run flutter_native_splash:create
+```
+
+### 7. (Optional) Configure subscriptions
+
+The app runs fine without this — with no key it falls back to a mock billing
+service and everyone gets the Free tier. To enable real purchases:
+
+1. Create a [RevenueCat](https://www.revenuecat.com) project.
+2. Add entitlements with the identifiers **`pro`** and **`business`**.
+3. Create store products whose identifiers contain `pro`/`business` and
+   `monthly`/`yearly` (e.g. `builder_pro_yearly`) and attach them to an
+   offering marked *current*.
+4. Pass the public SDK key at build time:
+
+```bash
+flutter run \
+  --dart-define=REVENUECAT_ANDROID_KEY=goog_xxx \
+  --dart-define=REVENUECAT_IOS_KEY=appl_xxx
+```
+
+In CI, set `REVENUECAT_ANDROID_KEY` as a repository secret. The public key is
+safe in a client binary — it can only read offerings and start purchases.
+
+**Android:** biometric app lock needs `MainActivity` to extend
+`FlutterFragmentActivity` (the CI workflow patches this automatically after
+`flutter create`).
+
+### 8. Run
 ```bash
 flutter run
+```
+
+### Tests
+```bash
+flutter analyze
+flutter test
 ```
 On first launch you'll register an account and complete the **Business Setup
 Wizard**. After that the full app is available.

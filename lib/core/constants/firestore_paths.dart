@@ -7,6 +7,12 @@ class FirestorePaths {
 
   static const String users = 'users';
   static const String settings = 'settings';
+
+  /// Read-through cache of store entitlements, keyed by UID.
+  static const String subscriptions = 'subscriptions';
+
+  /// Recycle bin for deleted records, recoverable for 30 days.
+  static const String trash = 'trash';
   static const String customers = 'customers';
   static const String jobs = 'jobs';
   static const String quotes = 'quotes';

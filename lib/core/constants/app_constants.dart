@@ -4,6 +4,9 @@ class AppConstants {
 
   static const String appName = 'Builder CRM';
 
+  /// Keep in step with `version:` in pubspec.yaml.
+  static const String appVersion = '2.0.0';
+
   // Default company/invoice settings used before the setup wizard runs, and as
   // fallbacks when a value is missing.
   static const String defaultCurrencyCode = 'GBP';
@@ -25,6 +28,14 @@ class AppConstants {
 
   // Local-preference keys.
   static const String prefThemeMode = 'pref_theme_mode';
+  static const String prefDashboardOrder = 'pref_dashboard_order';
+  static const String prefDashboardHidden = 'pref_dashboard_hidden';
+  static const String prefBiometricLock = 'pref_biometric_lock';
+  static const String prefLastUnlockAt = 'pref_last_unlock_at';
+
+  /// How long the app stays unlocked after a successful biometric check
+  /// before asking again on resume.
+  static const Duration appLockGrace = Duration(minutes: 2);
 
   // Photo categories.
   static const List<String> photoCategories = <String>[

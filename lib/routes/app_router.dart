@@ -11,6 +11,7 @@ import '../screens/auth/register_screen.dart';
 import '../screens/customers/customer_detail_screen.dart';
 import '../screens/customers/customer_form_screen.dart';
 import '../screens/customers/customers_screen.dart';
+import '../screens/dashboard/customize_dashboard_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/documents/documents_screen.dart';
 import '../screens/expenses/expense_form_screen.dart';
@@ -29,9 +30,14 @@ import '../screens/quotes/quote_detail_screen.dart';
 import '../screens/quotes/quote_form_screen.dart';
 import '../screens/quotes/quotes_screen.dart';
 import '../screens/reports/reports_screen.dart';
+import '../screens/data/data_export_screen.dart';
+import '../screens/data/trash_screen.dart';
 import '../screens/search/search_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/setup/business_setup_wizard.dart';
+import '../screens/subscription/manage_subscription_screen.dart';
+import '../screens/subscription/paywall_screen.dart';
+import '../widgets/upgrade_prompt.dart';
 import 'app_routes.dart';
 
 final _rootKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -319,6 +325,51 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.search,
         parentNavigatorKey: _rootKey,
         builder: (_, __) => const SearchScreen(),
+      ),
+
+      // ---- Subscription ----
+      // Presented modally: upgrading is a detour from whatever the user was
+      // doing, and they should land back exactly where they left off.
+      GoRoute(
+        path: Routes.paywall,
+        parentNavigatorKey: _rootKey,
+        pageBuilder: (BuildContext context, GoRouterState state) {
+          final PaywallArgs? args = state.extra is PaywallArgs
+              ? state.extra! as PaywallArgs
+              : null;
+          return MaterialPage<void>(
+            key: state.pageKey,
+            fullscreenDialog: true,
+            child: PaywallScreen(
+              highlight: args?.highlight,
+              reason: args?.reason,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: Routes.subscription,
+        parentNavigatorKey: _rootKey,
+        builder: (_, __) => const ManageSubscriptionScreen(),
+      ),
+
+      // ---- Dashboard configuration ----
+      GoRoute(
+        path: Routes.customizeDashboard,
+        parentNavigatorKey: _rootKey,
+        builder: (_, __) => const CustomizeDashboardScreen(),
+      ),
+
+      // ---- Data safety ----
+      GoRoute(
+        path: Routes.trash,
+        parentNavigatorKey: _rootKey,
+        builder: (_, __) => const TrashScreen(),
+      ),
+      GoRoute(
+        path: Routes.dataExport,
+        parentNavigatorKey: _rootKey,
+        builder: (_, __) => const DataExportScreen(),
       ),
     ],
   );

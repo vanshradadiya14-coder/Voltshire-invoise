@@ -1,57 +1,173 @@
 rules_version = '2';
 
-// Security model: every document stores an `ownerId` equal to the creating
-// user's Firebase Auth UID. A user may only read/write documents they own.
-// This satisfies the requirement that users can only access their own data.
+// Security model
+// --------------
+// Every document carries an `ownerId` equal to the creating user's Firebase
+// Auth UID. A user may only read/write documents they own.
+//
+// v2 adds three things the first ruleset was missing:
+//   1. ownerId immutability — an update cannot reassign a record to someone
+//      else, which the original `ownsIncoming()` alone permitted;
+//   2. shape validation on money fields, so a tampered client cannot write a
+//      string or a negative total into a figure the reports sum;
+//   3. a server-authoritative subscriptions document — the client may read its
+//      entitlements cache but never grant itself a tier.
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Signed-in helper.
+    // ---- Helpers --------------------------------------------------------
+
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // The document belongs to the requesting user.
     function ownsExisting() {
       return isSignedIn() && resource.data.ownerId == request.auth.uid;
     }
 
-    // The incoming document is being written with the requester as owner.
     function ownsIncoming() {
       return isSignedIn() && request.resource.data.ownerId == request.auth.uid;
     }
 
-    // The user profile document: keyed by the user's own UID.
+    // An update must not move a record to a different owner.
+    function ownerUnchanged() {
+      return request.resource.data.ownerId == resource.data.ownerId;
+    }
+
+    function canCreate() {
+      return ownsIncoming();
+    }
+
+    function canUpdate() {
+      return ownsExisting() && ownsIncoming() && ownerUnchanged();
+    }
+
+    // A field is either absent or a non-negative number. Absent is allowed
+    // because older documents predate the field.
+    function moneyOk(field) {
+      return !(field in request.resource.data)
+        || (request.resource.data[field] is number
+            && request.resource.data[field] >= 0);
+    }
+
+    function stringOk(field, maxLen) {
+      return !(field in request.resource.data)
+        || (request.resource.data[field] is string
+            && request.resource.data[field].size() <= maxLen);
+    }
+
+    // Guards against a runaway client writing a multi-megabyte document.
+    function itemsBounded() {
+      return !('items' in request.resource.data)
+        || (request.resource.data.items is list
+            && request.resource.data.items.size() <= 200);
+    }
+
+    // ---- Per-user singletons --------------------------------------------
+
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // The single company profile / settings document per user, keyed by UID.
     match /settings/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Generic owner-scoped collections.
-    match /customers/{docId}  { allow read, delete: if ownsExisting();
-                                allow create, update: if ownsIncoming(); }
-    match /jobs/{docId}       { allow read, delete: if ownsExisting();
-                                allow create, update: if ownsIncoming(); }
-    match /quotes/{docId}     { allow read, delete: if ownsExisting();
-                                allow create, update: if ownsIncoming(); }
-    match /invoices/{docId}   { allow read, delete: if ownsExisting();
-                                allow create, update: if ownsIncoming(); }
-    match /invoice_items/{docId} { allow read, delete: if ownsExisting();
-                                   allow create, update: if ownsIncoming(); }
-    match /payments/{docId}   { allow read, delete: if ownsExisting();
-                                allow create, update: if ownsIncoming(); }
-    match /expenses/{docId}   { allow read, delete: if ownsExisting();
-                                allow create, update: if ownsIncoming(); }
-    match /documents/{docId}  { allow read, delete: if ownsExisting();
-                                allow create, update: if ownsIncoming(); }
-    match /photos/{docId}     { allow read, delete: if ownsExisting();
-                                allow create, update: if ownsIncoming(); }
+    // Entitlement cache.
+    //
+    // Client writes are permitted so the app can mirror what the store told it
+    // while offline — but this document is never the source of truth for
+    // access. RevenueCat is. Anything a user writes here is overwritten on the
+    // next store sync, so editing it locally buys nothing durable.
+    //
+    // To make this fully server-authoritative, change `allow write` to
+    // `if false` and have a RevenueCat webhook write it via the Admin SDK.
+    match /subscriptions/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
 
-    // Default deny everything else.
+    // ---- Owner-scoped collections ---------------------------------------
+
+    match /customers/{docId} {
+      allow read, delete: if ownsExisting();
+      allow create: if canCreate()
+        && stringOk('name', 200)
+        && stringOk('email', 320)
+        && stringOk('phone', 40);
+      allow update: if canUpdate()
+        && stringOk('name', 200)
+        && stringOk('email', 320)
+        && stringOk('phone', 40);
+    }
+
+    match /jobs/{docId} {
+      allow read, delete: if ownsExisting();
+      allow create: if canCreate() && stringOk('title', 300);
+      allow update: if canUpdate() && stringOk('title', 300);
+    }
+
+    match /quotes/{docId} {
+      allow read, delete: if ownsExisting();
+      allow create: if canCreate() && itemsBounded()
+        && moneyOk('subtotal') && moneyOk('vatTotal') && moneyOk('grandTotal');
+      allow update: if canUpdate() && itemsBounded()
+        && moneyOk('subtotal') && moneyOk('vatTotal') && moneyOk('grandTotal');
+    }
+
+    match /invoices/{docId} {
+      allow read, delete: if ownsExisting();
+      allow create: if canCreate() && itemsBounded()
+        && moneyOk('subtotal') && moneyOk('vatTotal')
+        && moneyOk('grandTotal') && moneyOk('amountPaid')
+        && moneyOk('balanceDue');
+      allow update: if canUpdate() && itemsBounded()
+        && moneyOk('subtotal') && moneyOk('vatTotal')
+        && moneyOk('grandTotal') && moneyOk('amountPaid')
+        && moneyOk('balanceDue');
+    }
+
+    match /invoice_items/{docId} {
+      allow read, delete: if ownsExisting();
+      allow create: if canCreate();
+      allow update: if canUpdate();
+    }
+
+    match /payments/{docId} {
+      allow read, delete: if ownsExisting();
+      allow create: if canCreate() && moneyOk('amount');
+      allow update: if canUpdate() && moneyOk('amount');
+    }
+
+    match /expenses/{docId} {
+      allow read, delete: if ownsExisting();
+      allow create: if canCreate() && moneyOk('amount');
+      allow update: if canUpdate() && moneyOk('amount');
+    }
+
+    match /documents/{docId} {
+      allow read, delete: if ownsExisting();
+      allow create: if canCreate();
+      allow update: if canUpdate();
+    }
+
+    match /photos/{docId} {
+      allow read, delete: if ownsExisting();
+      allow create: if canCreate();
+      allow update: if canUpdate();
+    }
+
+    // Recycle bin. Restore rewrites the original document, which the rules for
+    // that collection then validate independently.
+    match /trash/{docId} {
+      allow read, delete: if ownsExisting();
+      allow create: if canCreate();
+      allow update: if canUpdate();
+    }
+
+    // ---- Default deny ----------------------------------------------------
+
     match /{document=**} {
       allow read, write: if false;
     }

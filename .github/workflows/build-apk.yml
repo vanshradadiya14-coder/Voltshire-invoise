@@ -8,7 +8,14 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  # Gate the build on analyze + tests, so a green artifact always means a
+  # green codebase.
+  verify:
+    name: Verify
+    uses: ./.github/workflows/ci.yml
+
   build:
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -64,8 +71,37 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Enable biometrics (local_auth needs FlutterFragmentActivity)
+        run: |
+          # local_auth's Android implementation shows its prompt from a
+          # FragmentActivity. The default template extends FlutterActivity, and
+          # leaving it produces a runtime crash the moment app lock is used —
+          # not a build error, so it is easy to ship broken.
+          act=$(find android/app/src/main -name 'MainActivity.kt' | head -1)
+          if [ -n "$act" ]; then
+            sed -i 's/io.flutter.embedding.android.FlutterActivity/io.flutter.embedding.android.FlutterFragmentActivity/' "$act"
+            sed -i 's/: FlutterActivity()/: FlutterFragmentActivity()/' "$act"
+            echo "----- MainActivity.kt -----"; cat "$act"
+          fi
+
+          man=android/app/src/main/AndroidManifest.xml
+          if [ -f "$man" ] && ! grep -q USE_BIOMETRIC "$man"; then
+            sed -i 's#<application#<uses-permission android:name="android.permission.USE_BIOMETRIC"/>\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <application#' "$man"
+          fi
+
+      - name: Generate launcher icon and splash screen
+        run: |
+          dart run flutter_launcher_icons
+          dart run flutter_native_splash:create
+
       - name: Build the release APK
-        run: flutter build apk --release
+        # RevenueCat's public SDK key is safe in a client binary (it can only
+        # read offerings and start purchases). Set REVENUECAT_ANDROID_KEY as a
+        # repository secret; if it is absent the app falls back to the mock
+        # billing service and everyone gets the Free tier — it never crashes.
+        run: |
+          flutter build apk --release \
+            --dart-define=REVENUECAT_ANDROID_KEY="${{ secrets.REVENUECAT_ANDROID_KEY }}"
 
       - name: Upload the APK
         uses: actions/upload-artifact@v4

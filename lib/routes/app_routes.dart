@@ -27,6 +27,19 @@ class Routes {
   static const String settings = '/settings';
   static const String search = '/search';
 
+  // Subscription
+  static const String paywall = '/upgrade';
+  static const String subscription = '/settings/subscription';
+
+  // Dashboard configuration.
+  // Deliberately not '/dashboard/customize': '/dashboard' is a shell branch,
+  // and nesting under it would push this screen inside the bottom-nav shell.
+  static const String customizeDashboard = '/customise-dashboard';
+
+  // Data safety
+  static const String trash = '/settings/trash';
+  static const String dataExport = '/settings/export';
+
   // ---- Builders for parameterised routes ----
   static String customerDetail(String id) => '/customers/$id';
   static String customerEdit(String id) => '/customers/$id/edit';

@@ -1,140 +1,35 @@
 {
+  "//": [
+    "Only indexes that a query in this codebase actually needs.",
+    "",
+    "Commit 6630f47 moved list sorting and filtering on-device (see the",
+    "_watchOwned() methods in lib/repositories/), so the single-field ownerId",
+    "index Firestore creates automatically now covers every list query. The 16",
+    "composite indexes that used to live here were dead config: they cost build",
+    "time and storage, and they misled anyone reading the file into thinking the",
+    "queries were server-sorted.",
+    "",
+    "The two below are real. Restore the pruned ones alongside cursor",
+    "pagination, which is the change that will put ORDER BY back on the server.",
+    "See UPGRADE_PLAN.md, 'Deliberately deferred'."
+  ],
   "indexes": [
     {
+      "//": "TrashRepository.purgeExpired(): ownerId == uid AND deletedAt < cutoff",
+      "collectionGroup": "trash",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerId", "order": "ASCENDING" },
+        { "fieldPath": "deletedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "//": "CustomerRepository.search(): ownerId == uid ORDER BY nameLower",
       "collectionGroup": "customers",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "ownerId", "order": "ASCENDING" },
         { "fieldPath": "nameLower", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "jobs",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "jobs",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "customerId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "jobs",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "invoices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "issueDate", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "invoices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "issueDate", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "invoices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "customerId", "order": "ASCENDING" },
-        { "fieldPath": "issueDate", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "quotes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "issueDate", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "quotes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "customerId", "order": "ASCENDING" },
-        { "fieldPath": "issueDate", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "payments",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "invoiceId", "order": "ASCENDING" },
-        { "fieldPath": "date", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "payments",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "date", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "expenses",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "date", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "expenses",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "jobId", "order": "ASCENDING" },
-        { "fieldPath": "date", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "photos",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "jobId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "documents",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "documents",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "jobId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     }
   ],
