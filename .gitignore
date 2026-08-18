@@ -87,3 +87,6 @@ unlinked_spec.ds
 !**/ios/**/default.mode2v3
 !**/ios/**/default.pbxuser
 !**/ios/**/default.perspectivev3
+
+# Scratch
+_to_delete/
