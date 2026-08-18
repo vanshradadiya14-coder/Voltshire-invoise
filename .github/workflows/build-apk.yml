@@ -33,61 +33,68 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Generate the Android project files
-        run: flutter create --platforms=android .
+      # android/ is committed and already carries everything below: compileSdk
+      # 36 for the app and every plugin module, a FlutterFragmentActivity for
+      # local_auth, and the manifest permissions. These steps only fill gaps if
+      # the folder is ever regenerated from scratch, so each one checks first —
+      # re-applying them blindly appended a duplicate subprojects block and
+      # forced minSdk below the version the project is actually verified on.
+      - name: Restore the Android project if it is missing
+        run: |
+          if [ ! -f android/app/build.gradle.kts ]; then
+            flutter create --platforms=android .
+          fi
 
-      - name: Set Android SDK versions (Firebase minSdk 23; force compileSdk 36 everywhere)
+      - name: Ensure Android SDK levels
         run: |
           app=android/app/build.gradle.kts
-          if [ -f "$app" ]; then
-            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/' "$app"
-            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' "$app"
-            sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/' "$app"
-          fi
-          # Force EVERY Android module (app + all plugins) to compile against
-          # SDK 36. Some plugins hardcode an older compileSdk, so an app-level
-          # bump alone is not enough.
           proj=android/build.gradle.kts
-          if [ -f "$proj" ]; then
-            {
-              echo ""
-              echo "subprojects {"
-              echo "    if (!state.executed) {"
-              echo "        afterEvaluate {"
-              echo "            val androidExtension = project.extensions.findByName(\"android\")"
-              echo "            if (androidExtension is com.android.build.gradle.BaseExtension) {"
-              echo "                androidExtension.compileSdkVersion(36)"
-              echo "            }"
-              echo "        }"
-              echo "    }"
-              echo "}"
-            } >> "$proj"
+          sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' "$app"
+          sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/' "$app"
+          # Some plugins pin an older compileSdk, so the app-level bump alone is
+          # not enough. Added only when absent.
+          if ! grep -q 'compileSdkVersion(36)' "$proj"; then
+            cat >> "$proj" <<'GRADLE'
+
+subprojects {
+    if (!state.executed) {
+        afterEvaluate {
+            val androidExtension = project.extensions.findByName("android")
+            if (androidExtension is com.android.build.gradle.BaseExtension) {
+                androidExtension.compileSdkVersion(36)
+            }
+        }
+    }
+}
+GRADLE
           fi
-          echo "----- app build.gradle.kts Sdk lines -----"
           grep -E 'Sdk' "$app" || true
-          echo "----- project build.gradle.kts tail -----"
-          tail -12 "$proj" || true
 
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Enable biometrics (local_auth needs FlutterFragmentActivity)
+      - name: Ensure biometrics prerequisites
         run: |
-          # local_auth's Android implementation shows its prompt from a
-          # FragmentActivity. The default template extends FlutterActivity, and
-          # leaving it produces a runtime crash the moment app lock is used —
-          # not a build error, so it is easy to ship broken.
+          # local_auth shows its prompt from a FragmentActivity; the default
+          # template extends FlutterActivity, which crashes at runtime rather
+          # than failing the build.
           act=$(find android/app/src/main -name 'MainActivity.kt' | head -1)
           if [ -n "$act" ]; then
             sed -i 's/io.flutter.embedding.android.FlutterActivity/io.flutter.embedding.android.FlutterFragmentActivity/' "$act"
             sed -i 's/: FlutterActivity()/: FlutterFragmentActivity()/' "$act"
-            echo "----- MainActivity.kt -----"; cat "$act"
+          fi
+          man=android/app/src/main/AndroidManifest.xml
+          if [ -f "$man" ]; then
+            # sed's insert command takes the text literally to end of line, so
+            # this needs no embedded newlines. A multi-line s### replacement
+            # here was not valid sed and would have failed if it ever ran.
+            for perm in USE_BIOMETRIC INTERNET CAMERA ACCESS_NETWORK_STATE; do
+              if ! grep -q "android.permission.$perm" "$man"; then
+                sed -i "/<application/i\    <uses-permission android:name=\"android.permission.$perm\"/>" "$man"
+              fi
+            done
+            grep -E 'uses-permission' "$man" || true
           fi
 
-          man=android/app/src/main/AndroidManifest.xml
-          if [ -f "$man" ] && ! grep -q USE_BIOMETRIC "$man"; then
-            sed -i 's#<application#<uses-permission android:name="android.permission.USE_BIOMETRIC"/>\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <application#' "$man"
-          fi
+      - name: Install dependencies
+        run: flutter pub get
 
       - name: Generate launcher icon and splash screen
         run: |
