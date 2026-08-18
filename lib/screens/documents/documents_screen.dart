@@ -7,12 +7,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/document_file.dart';
+import '../../models/subscription.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/ui_helpers.dart';
+import '../../widgets/upgrade_prompt.dart';
 
 /// Store and manage contracts, certificates, guarantees, planning docs, etc.
 class DocumentsScreen extends ConsumerStatefulWidget {
@@ -26,6 +28,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   bool _uploading = false;
 
   Future<void> _upload() async {
+    if (!await ensureCanCreate(context, ref, LimitedResource.storedFiles)) {
+      return;
+    }
+    if (!mounted) return;
+
     final FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.any,
       withData: false,

@@ -7,11 +7,13 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../models/job_photo.dart';
+import '../../models/subscription.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/ui_helpers.dart';
+import '../../widgets/upgrade_prompt.dart';
 
 /// Manage before/progress/completed photos for a job.
 class JobPhotosScreen extends ConsumerStatefulWidget {
@@ -26,6 +28,11 @@ class _JobPhotosScreenState extends ConsumerState<JobPhotosScreen> {
   bool _uploading = false;
 
   Future<void> _add() async {
+    // Check before opening the picker: letting someone frame a shot and then
+    // refusing to save it is a worse experience than saying so up front.
+    if (!await ensureCanCreate(context, ref, LimitedResource.photos)) return;
+    if (!mounted) return;
+
     final _PickChoice? choice = await showModalBottomSheet<_PickChoice>(
       context: context,
       showDragHandle: true,
