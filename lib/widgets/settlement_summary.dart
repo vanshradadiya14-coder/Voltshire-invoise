@@ -30,7 +30,6 @@ class SettlementSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
     final AppStatusColors c = AppColors.of(context);
     final Settlement s = settlement;
 

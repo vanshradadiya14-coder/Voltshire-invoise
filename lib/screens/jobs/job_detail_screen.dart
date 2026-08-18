@@ -9,7 +9,6 @@ import '../../models/enums.dart';
 import '../../models/expense.dart';
 import '../../models/job.dart';
 import '../../models/job_photo.dart';
-import '../../models/payment_stage.dart';
 import '../../models/variation.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/repository_providers.dart';

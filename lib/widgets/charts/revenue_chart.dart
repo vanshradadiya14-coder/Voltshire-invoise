@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/utils/formatters.dart';
 import '../../models/dashboard_metrics.dart';
-import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import 'chart_shell.dart';
 

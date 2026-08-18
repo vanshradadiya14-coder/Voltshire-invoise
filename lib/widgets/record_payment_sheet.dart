@@ -134,7 +134,7 @@ class _RecordPaymentSheetState extends State<_RecordPaymentSheet> {
                             ?.copyWith(fontWeight: FontWeight.w600)),
                   ),
                   DropdownButtonFormField<String>(
-                    value: _method,
+                    initialValue: _method,
                     items: AppConstants.paymentMethods
                         .map((String m) =>
                             DropdownMenuItem<String>(value: m, child: Text(m)))

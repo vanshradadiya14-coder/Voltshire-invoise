@@ -137,7 +137,7 @@ class OfflineBanner extends StatelessWidget {
                 child: Text(
                   pendingWrites > 0
                       ? "Offline — $pendingWrites ${pendingWrites == 1 ? 'change' : 'changes'} will sync when you're back"
-                      : "Offline — your changes are saved on this device",
+                      : 'Offline — your changes are saved on this device',
                   style: theme.textTheme.bodySmall
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),

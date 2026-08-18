@@ -10,7 +10,6 @@ import '../../models/subscription.dart';
 import '../../models/trade_enums.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/repository_providers.dart';
-import '../../providers/subscription_providers.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';

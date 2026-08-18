@@ -180,7 +180,7 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                           ?.copyWith(fontWeight: FontWeight.w600)),
                 ),
                 DropdownButtonFormField<String>(
-                  value: _category,
+                  initialValue: _category,
                   items: AppConstants.expenseCategories
                       .map((String c) =>
                           DropdownMenuItem<String>(value: c, child: Text(c)))

@@ -471,7 +471,7 @@ class _BusinessSetupWizardState extends ConsumerState<BusinessSetupWizard> {
                   ?.copyWith(fontWeight: FontWeight.w600)),
         ),
         DropdownButtonFormField<String>(
-          value: _currencyCode,
+          initialValue: _currencyCode,
           items: _currencies.entries
               .map((MapEntry<String, String> e) => DropdownMenuItem<String>(
                     value: e.key,
