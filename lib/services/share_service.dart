@@ -90,4 +90,23 @@ class ShareService {
 
   Future<bool> openUrl(String url) =>
       launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+
+  /// Opens the SMS composer with a pre-filled message.
+  ///
+  /// Worth having alongside email: a builder chasing payment sends whatever
+  /// the customer actually answers on, and for a lot of domestic clients that
+  /// is a text.
+  Future<bool> composeSms({required String phone, String message = ''}) {
+    final String digits = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    // `?body=` is the iOS form and is also honoured by most Android clients.
+    final Uri uri = Uri.parse(
+      'sms:$digits?body=${Uri.encodeComponent(message)}',
+    );
+    return launchUrl(uri);
+  }
+
+  /// Shares plain text through the native share sheet — the fallback when
+  /// there is no phone number or email address on file.
+  Future<void> shareText(String text, {String? subject}) =>
+      Share.share(text, subject: subject);
 }

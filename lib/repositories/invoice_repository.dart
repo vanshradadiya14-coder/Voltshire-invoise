@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../core/constants/firestore_paths.dart';
 import '../models/enums.dart';
 import '../models/invoice.dart';
+import '../models/trade_enums.dart';
 import 'company_repository.dart';
 
 /// CRUD for the `invoices` collection, including atomic auto-numbering.
@@ -52,23 +53,18 @@ class InvoiceRepository {
     final int number = await _company.reserveNextInvoiceNumber();
     final CompanyProfileNumber fmt = await _formattedNumber(number);
     final String id = _uuid.v4();
-    final Invoice toSave = Invoice(
+
+    // Copy the caller's invoice and override only what the server assigns.
+    // Rebuilding it field by field used to silently drop anything not listed —
+    // that lost cisStatus and reverseCharge (wrong amount due for every CIS and
+    // reverse-charge customer) and the payment-stage link. copyWith keeps new
+    // fields by default, so adding one cannot reintroduce that bug.
+    final Invoice toSave = invoice.copyWith(
       id: id,
       ownerId: _uid,
       number: number,
       numberFormatted: fmt.invoice,
-      customerId: invoice.customerId,
-      customerName: invoice.customerName,
-      customerAddress: invoice.customerAddress,
-      jobId: invoice.jobId,
-      jobTitle: invoice.jobTitle,
-      workDescription: invoice.workDescription,
-      items: invoice.items,
       issueDate: invoice.issueDate ?? DateTime.now(),
-      dueDate: invoice.dueDate,
-      amountPaid: invoice.amountPaid,
-      isDraft: invoice.isDraft,
-      notes: invoice.notes,
       createdAt: DateTime.now(),
     );
     await _col.doc(id).set(toSave.toMap());
@@ -79,6 +75,20 @@ class InvoiceRepository {
       _col.doc(invoice.id).set(invoice.toMap(), SetOptions(merge: true));
 
   Future<void> delete(String id) => _col.doc(id).delete();
+
+  /// Logs that a payment reminder was sent.
+  ///
+  /// Kept as an audit trail rather than a simple flag: if an unpaid invoice
+  /// ends up in a county court claim, "I chased three times, here are the
+  /// dates" is the difference between winning and not.
+  Future<void> recordReminder(String id, ReminderStage stage) {
+    return _col.doc(id).set(<String, dynamic>{
+      'remindersSent': FieldValue.increment(1),
+      'lastReminderAt': Timestamp.now(),
+      'lastReminderStage': stage.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
 
   Future<CompanyProfileNumber> _formattedNumber(int number) async {
     final profile = await _company.fetch();

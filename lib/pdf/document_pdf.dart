@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 
 import '../core/utils/calculations.dart';
 import '../core/utils/formatters.dart';
+import '../core/utils/settlement.dart';
 import '../models/company_profile.dart';
 import '../models/invoice.dart';
 import '../models/line_item.dart';
@@ -44,11 +45,14 @@ class DocumentPdf {
       items: invoice.items,
       symbol: company.currencySymbol,
       totalLabel: 'TOTAL DUE',
-      totalValue: invoice.balanceDue > 0 ? invoice.balanceDue : invoice.grandTotal,
+      totalValue: invoice.balanceDue > 0 ? invoice.balanceDue : invoice.amountDue,
       amountPaid: invoice.amountPaid,
       notes: invoice.notes,
       showBankDetails: true,
       paymentMethodLabel: 'Transfer',
+      // Drives the CIS breakdown and the statutory reverse-charge wording.
+      // Both are legal requirements on a UK construction invoice, not styling.
+      settlement: invoice.settlement,
     );
   }
 
@@ -100,6 +104,7 @@ class DocumentPdf {
     required String notes,
     required bool showBankDetails,
     required String? paymentMethodLabel,
+    Settlement? settlement,
   }) async {
     final pw.Document doc = pw.Document();
 
@@ -139,7 +144,12 @@ class DocumentPdf {
             pw.SizedBox(height: 12),
           _itemsTable(items, symbol),
           pw.SizedBox(height: 12),
-          _totals(totals, symbol, totalLabel, totalValue, amountPaid),
+          _totals(totals, symbol, totalLabel, totalValue, amountPaid,
+              settlement),
+          if (settlement?.reverseChargeApplies ?? false) ...<pw.Widget>[
+            pw.SizedBox(height: 12),
+            _reverseChargeNotice(settlement!, symbol),
+          ],
           pw.SizedBox(height: 20),
           if (notes.isNotEmpty || company.notes.isNotEmpty)
             _notesBlock(notes.isNotEmpty ? notes : company.notes),
@@ -373,7 +383,7 @@ class DocumentPdf {
 
   // ---- Totals block, right aligned ----
   static pw.Widget _totals(DocumentTotals totals, String symbol, String totalLabel,
-      double totalValue, double amountPaid) {
+      double totalValue, double amountPaid, Settlement? settlement) {
     pw.Widget line(String label, String value, {bool bold = false, PdfColor? color}) {
       return pw.Padding(
         padding: const pw.EdgeInsets.symmetric(vertical: 2.5),
@@ -402,14 +412,38 @@ class DocumentPdf {
           flex: 4,
           child: pw.Column(
             children: <pw.Widget>[
+              // Under CIS the customer needs to see what the deduction was
+              // calculated from, or they cannot verify it.
+              if (settlement?.hasCis ?? false) ...<pw.Widget>[
+                line('Labour',
+                    Formatters.money(settlement!.labourNet, symbol: symbol)),
+                line('Materials & plant',
+                    Formatters.money(settlement.materialsNet, symbol: symbol)),
+                pw.Divider(color: _line, height: 8),
+              ],
               line('Subtotal', Formatters.money(totals.subtotal, symbol: symbol)),
               if (totals.discountTotal > 0)
                 line('Discount',
                     '-${Formatters.money(totals.discountTotal, symbol: symbol)}'),
-              line('VAT', Formatters.money(totals.vatTotal, symbol: symbol)),
+              if (settlement?.reverseChargeApplies ?? false)
+                line('VAT (reverse charge)',
+                    Formatters.money(0, symbol: symbol))
+              else
+                line('VAT', Formatters.money(totals.vatTotal, symbol: symbol)),
               pw.Divider(color: _line, height: 10),
-              line('Grand Total', Formatters.money(totals.grandTotal, symbol: symbol),
-                  bold: true),
+              line(
+                settlement?.hasCis ?? false ? 'Value of work' : 'Grand Total',
+                Formatters.money(
+                  settlement?.grossTotal ?? totals.grandTotal,
+                  symbol: symbol,
+                ),
+                bold: true,
+              ),
+              if (settlement?.hasCis ?? false)
+                line(
+                  'Less CIS @ ${settlement!.cisRate.toStringAsFixed(0)}%',
+                  '-${Formatters.money(settlement.cisDeduction, symbol: symbol)}',
+                ),
               if (amountPaid > 0) ...<pw.Widget>[
                 line('Amount Paid', '-${Formatters.money(amountPaid, symbol: symbol)}'),
               ],
@@ -440,6 +474,48 @@ class DocumentPdf {
           ),
         ),
       ],
+    );
+  }
+
+  /// The statutory declaration for a VAT domestic reverse-charge invoice.
+  ///
+  /// HMRC requires the invoice to state that the reverse charge applies and to
+  /// show the VAT the customer must account for. An invoice missing this is not
+  /// a valid reverse-charge invoice, so it is rendered as a bordered block that
+  /// cannot be mistaken for a note.
+  static pw.Widget _reverseChargeNotice(Settlement s, String symbol) {
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: _accent, width: 1),
+        borderRadius: pw.BorderRadius.circular(4),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: <pw.Widget>[
+          pw.Text(
+            'VAT REVERSE CHARGE',
+            style: pw.TextStyle(
+              fontSize: 9,
+              fontWeight: pw.FontWeight.bold,
+              color: _accent,
+              letterSpacing: 0.6,
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            Settlement.reverseChargeNotice,
+            style: const pw.TextStyle(fontSize: 9, lineSpacing: 1.6),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            'VAT to be accounted for by the customer: '
+            '${Formatters.money(s.vatReverseCharged, symbol: symbol)}',
+            style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+          ),
+        ],
+      ),
     );
   }
 

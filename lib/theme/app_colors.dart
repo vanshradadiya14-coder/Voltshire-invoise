@@ -72,6 +72,43 @@ class AppColors {
     Color(0xFF6B8E23), // olive
   ];
 
+  // ---- Signature Gradients ---------------------------------------------
+
+  /// Electric Sapphire brand gradient for hero headers and prominent CTAs
+  static const LinearGradient primaryGradient = LinearGradient(
+    colors: <Color>[Color(0xFF1D55E3), Color(0xFF0C2B78)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  /// Radiant Amber gradient for badges, highlighted metrics and pro accents
+  static const LinearGradient accentGradient = LinearGradient(
+    colors: <Color>[Color(0xFFFBBF24), Color(0xFFD97706)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  /// Emerald Success gradient for paid invoices and positive growth
+  static const LinearGradient successGradient = LinearGradient(
+    colors: <Color>[Color(0xFF10B981), Color(0xFF047857)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  /// Crimson Alert gradient for urgent/overdue highlights
+  static const LinearGradient dangerGradient = LinearGradient(
+    colors: <Color>[Color(0xFFF87171), Color(0xFFDC2626)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  /// Sleek dark hero card gradient
+  static const LinearGradient darkHeroGradient = LinearGradient(
+    colors: <Color>[Color(0xFF111827), Color(0xFF0F172A), Color(0xFF030712)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
   /// Series colour by index, wrapping if there are more slices than colours.
   static Color series(int index) =>
       chartSeries[index % chartSeries.length];

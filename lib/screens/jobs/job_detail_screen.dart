@@ -3,17 +3,223 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/firestore_paths.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/enums.dart';
 import '../../models/expense.dart';
 import '../../models/job.dart';
 import '../../models/job_photo.dart';
+import '../../models/payment_stage.dart';
+import '../../models/variation.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/trash_providers.dart';
+import '../../providers/trade_providers.dart';
 import '../../routes/app_routes.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/status_chip.dart';
 import '../../widgets/ui_helpers.dart';
+
+/// Billing progress: what the job is worth, what has been invoiced, and the
+/// next stage to bill.
+class _BillingSection extends ConsumerWidget {
+  const _BillingSection({required this.jobId, required this.symbol});
+  final String jobId;
+  final String symbol;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ThemeData theme = Theme.of(context);
+    final AppStatusColors c = AppColors.of(context);
+    final JobBilling billing = ref.watch(jobBillingProvider(jobId));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        SectionHeader(
+          'Billing',
+          trailing: TextButton(
+            onPressed: () => context.push(Routes.jobStages(jobId)),
+            child: Text(billing.hasSchedule ? 'Schedule' : 'Set up stages'),
+          ),
+        ),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text('Job value',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            )),
+                        Text(
+                          Formatters.money(billing.jobValue, symbol: symbol),
+                          style: theme.textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (billing.hasSchedule)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        Text('Left to bill',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            )),
+                        Text(
+                          Formatters.money(billing.remaining, symbol: symbol),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: billing.remaining > 0.005
+                                ? c.warning
+                                : c.success,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+              if (billing.hasSchedule) ...<Widget>[
+                const SizedBox(height: Insets.md),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(Radii.xs),
+                  child: LinearProgressIndicator(
+                    value: billing.progress,
+                    minHeight: 7,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  ),
+                ),
+                if (billing.nextStage != null) ...<Widget>[
+                  const SizedBox(height: Insets.md),
+                  FilledButton.tonalIcon(
+                    onPressed: () => context.push(Routes.jobStages(jobId)),
+                    icon: const Icon(Icons.receipt_long, size: 17),
+                    label: Text(
+                      'Next: ${billing.nextStage!.label} · '
+                      '${Formatters.money(billing.nextStage!.amountFor(billing.jobValue), symbol: symbol)}',
+                    ),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 42),
+                    ),
+                  ),
+                ],
+              ] else
+                Padding(
+                  padding: const EdgeInsets.only(top: Insets.sm),
+                  child: Text(
+                    'No payment schedule. Set one up to take a deposit and '
+                    'bill in stages.',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Extra work agreed after the job started.
+class _VariationsSection extends ConsumerWidget {
+  const _VariationsSection({required this.jobId, required this.symbol});
+  final String jobId;
+  final String symbol;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ThemeData theme = Theme.of(context);
+    final AppStatusColors c = AppColors.of(context);
+    final List<Variation> all =
+        ref.watch(variationsForJobProvider(jobId)).valueOrNull ??
+            const <Variation>[];
+    final double unbilled = all.unbilledNet;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        SectionHeader(
+          'Extras',
+          trailing: TextButton(
+            onPressed: () => context.push(Routes.jobVariations(jobId)),
+            child: Text(all.isEmpty ? 'Add' : 'See all (${all.length})'),
+          ),
+        ),
+        if (all.isEmpty)
+          AppCard(
+            child: Text(
+              'Nothing extra yet. Record anything the customer asks for '
+              'outside the original price so it does not go unbilled.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          )
+        else
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                for (final Variation v in all.take(3))
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            v.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ),
+                        const SizedBox(width: Insets.sm),
+                        StatusChip(
+                          label: v.status.label,
+                          color: c.resolve(v.status.color),
+                          dense: true,
+                        ),
+                        const SizedBox(width: Insets.sm),
+                        Text(
+                          Formatters.money(v.netTotal, symbol: symbol),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (unbilled > 0.005) ...<Widget>[
+                  const Divider(height: Insets.xl),
+                  Row(
+                    children: <Widget>[
+                      Icon(Icons.info_outline, size: 17, color: c.warning),
+                      const SizedBox(width: Insets.sm),
+                      Expanded(
+                        child: Text(
+                          '${Formatters.money(unbilled, symbol: symbol)} agreed '
+                          'but not yet invoiced',
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
 
 /// Full job view: details, status control, photos preview, expenses.
 class JobDetailScreen extends ConsumerWidget {
@@ -21,17 +227,24 @@ class JobDetailScreen extends ConsumerWidget {
   final String jobId;
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final Job? j = ref.read(jobProvider(jobId)).valueOrNull;
     final bool ok = await showConfirmDialog(
       context,
       title: 'Delete job?',
-      message: 'This permanently deletes the job.',
+      message: 'You can restore this job from Recently deleted for 30 days.',
       confirmLabel: 'Delete',
       destructive: true,
     );
     if (!ok) return;
-    await ref.read(jobRepositoryProvider).delete(jobId);
+    final bool binned = await trashRecord(
+      ref,
+      collection: FirestorePaths.jobs,
+      docId: jobId,
+      label: j?.title.isNotEmpty ?? false ? j!.title : 'Job',
+    );
+    if (!binned) await ref.read(jobRepositoryProvider).delete(jobId);
     if (context.mounted) {
-      showSnack(context, 'Job deleted.');
+      showSnack(context, 'Job deleted. Recoverable for 30 days.');
       context.pop();
     }
   }
@@ -145,6 +358,12 @@ class JobDetailScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 12),
+              // Money first: what is left to bill and what extras are still
+              // unbilled matter more than photos when you open a job.
+              _BillingSection(jobId: jobId, symbol: symbol),
+              const SizedBox(height: 8),
+              _VariationsSection(jobId: jobId, symbol: symbol),
+              const SizedBox(height: 8),
               _PhotosSection(jobId: jobId),
               const SizedBox(height: 8),
               _ExpensesSection(jobId: jobId, symbol: symbol),

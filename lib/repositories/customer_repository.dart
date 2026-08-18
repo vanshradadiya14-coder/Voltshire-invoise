@@ -52,15 +52,15 @@ class CustomerRepository {
 
   Future<String> create(Customer customer) async {
     final String id = _uuid.v4();
-    final Customer toSave = Customer(
+
+    // Copy and override only the server-assigned fields. Listing them by hand
+    // silently dropped the trade settings (type, CIS status, reverse charge,
+    // VAT/company number, contact, payment terms), so a customer saved as a
+    // CIS subcontractor came back as an ordinary one — and every invoice for
+    // them then used the wrong tax treatment.
+    final Customer toSave = customer.copyWith(
       id: id,
       ownerId: _uid,
-      name: customer.name,
-      phone: customer.phone,
-      email: customer.email,
-      billingAddress: customer.billingAddress,
-      siteAddress: customer.siteAddress,
-      notes: customer.notes,
       createdAt: DateTime.now(),
     );
     await _col.doc(id).set(toSave.toMap());

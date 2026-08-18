@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/firestore_paths.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/company_profile.dart';
+import '../../models/customer.dart';
 import '../../models/enums.dart';
 import '../../models/invoice.dart';
 import '../../models/quote.dart';
+import '../../models/trade_enums.dart';
 import '../../pdf/document_pdf.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/trash_providers.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/pdf_share_sheet.dart';
@@ -22,17 +26,25 @@ class QuoteDetailScreen extends ConsumerWidget {
   final String quoteId;
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final Quote? q = ref.read(quoteProvider(quoteId)).valueOrNull;
     final bool ok = await showConfirmDialog(
       context,
       title: 'Delete quote?',
-      message: 'This permanently deletes the quotation.',
+      message: 'You can restore this quotation from Recently deleted for 30 '
+          'days.',
       confirmLabel: 'Delete',
       destructive: true,
     );
     if (!ok) return;
-    await ref.read(quoteRepositoryProvider).delete(quoteId);
+    final bool binned = await trashRecord(
+      ref,
+      collection: FirestorePaths.quotes,
+      docId: quoteId,
+      label: q?.numberFormatted ?? 'Quotation',
+    );
+    if (!binned) await ref.read(quoteRepositoryProvider).delete(quoteId);
     if (context.mounted) {
-      showSnack(context, 'Quote deleted.');
+      showSnack(context, 'Quote deleted. Recoverable for 30 days.');
       context.pop();
     }
   }
@@ -54,6 +66,14 @@ class QuoteDetailScreen extends ConsumerWidget {
     );
     if (!ok) return;
     try {
+      // CIS and the VAT reverse charge are properties of the customer, not of
+      // the document. Without them the converted invoice would charge full VAT
+      // and withhold no CIS — the wrong amount due, and for reverse charge an
+      // invoice that is not legally valid. The invoice form applies the same
+      // rule when a customer is chosen.
+      final Customer? customer =
+          await ref.read(customerRepositoryProvider).fetchById(q.customerId);
+
       final String invoiceId = await ref.read(invoiceRepositoryProvider).create(
             Invoice(
               id: '',
@@ -70,6 +90,8 @@ class QuoteDetailScreen extends ConsumerWidget {
               issueDate: DateTime.now(),
               dueDate: DateTime.now().add(const Duration(days: 14)),
               notes: q.notes,
+              cisStatus: customer?.cisStatus ?? CisStatus.notApplicable,
+              reverseCharge: customer?.reverseCharge ?? false,
             ),
           );
       await ref.read(quoteRepositoryProvider).markConverted(q.id, invoiceId);

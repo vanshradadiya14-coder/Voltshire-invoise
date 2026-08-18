@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/firestore_paths.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/company_profile.dart';
 import '../../models/invoice.dart';
@@ -9,10 +10,14 @@ import '../../models/payment.dart';
 import '../../pdf/document_pdf.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/trash_providers.dart';
 import '../../routes/app_routes.dart';
+import '../../theme/app_colors.dart';
 import '../../widgets/async_value_view.dart';
+import '../../widgets/chase_payment_sheet.dart';
 import '../../widgets/pdf_share_sheet.dart';
 import '../../widgets/record_payment_sheet.dart';
+import '../../widgets/settlement_summary.dart';
 import '../../widgets/status_chip.dart';
 import '../../widgets/ui_helpers.dart';
 
@@ -22,17 +27,25 @@ class InvoiceDetailScreen extends ConsumerWidget {
   final String invoiceId;
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final Invoice? inv = ref.read(invoiceProvider(invoiceId)).valueOrNull;
     final bool ok = await showConfirmDialog(
       context,
       title: 'Delete invoice?',
-      message: 'This permanently deletes the invoice and cannot be undone.',
+      message: 'You can restore this invoice from Recently deleted for 30 '
+          'days. Its invoice number will not be reused.',
       confirmLabel: 'Delete',
       destructive: true,
     );
     if (!ok) return;
-    await ref.read(invoiceRepositoryProvider).delete(invoiceId);
+    final bool binned = await trashRecord(
+      ref,
+      collection: FirestorePaths.invoices,
+      docId: invoiceId,
+      label: inv?.numberFormatted ?? 'Invoice',
+    );
+    if (!binned) await ref.read(invoiceRepositoryProvider).delete(invoiceId);
     if (context.mounted) {
-      showSnack(context, 'Invoice deleted.');
+      showSnack(context, 'Invoice deleted. Recoverable for 30 days.');
       context.pop();
     }
   }
@@ -193,14 +206,29 @@ class _ItemsCard extends StatelessWidget {
               ),
             ),
           const Divider(),
-          totalLine('Subtotal', totals.subtotal),
-          if (totals.discountTotal > 0) totalLine('Discount', -totals.discountTotal),
-          totalLine('VAT', totals.vatTotal),
-          totalLine('Grand Total', totals.grandTotal, bold: true),
-          if (invoice.amountPaid > 0) ...<Widget>[
-            const SizedBox(height: 4),
-            totalLine('Paid', -invoice.amountPaid),
-            totalLine('Balance Due', invoice.balanceDue, bold: true),
+          // A plain subtotal/VAT/total block is only correct when no tax
+          // adjustment applies. Under CIS the deduction is invisible in it, so
+          // "Grand Total - Paid" stops matching Balance Due; under the reverse
+          // charge it shows VAT that was never actually charged. Defer to the
+          // same breakdown the form and the PDF use.
+          if (invoice.hasTaxAdjustments)
+            SettlementSummary(
+              settlement: invoice.settlement,
+              symbol: symbol,
+              amountPaid: invoice.amountPaid,
+              dense: true,
+            )
+          else ...<Widget>[
+            totalLine('Subtotal', totals.subtotal),
+            if (totals.discountTotal > 0)
+              totalLine('Discount', -totals.discountTotal),
+            totalLine('VAT', totals.vatTotal),
+            totalLine('Grand Total', totals.grandTotal, bold: true),
+            if (invoice.amountPaid > 0) ...<Widget>[
+              const SizedBox(height: 4),
+              totalLine('Paid', -invoice.amountPaid),
+              totalLine('Balance Due', invoice.balanceDue, bold: true),
+            ],
           ],
         ],
       ),
@@ -291,37 +319,67 @@ class _ActionBar extends ConsumerWidget {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            if (!invoice.isPaid && !invoice.isDraft)
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => showRecordPaymentSheet(context, ref, invoice),
-                  icon: const Icon(Icons.payments_outlined),
-                  label: const Text('Payment'),
+            // Chasing is the most valuable action on an overdue invoice, so it
+            // gets the full width above everything else. Late payment is the
+            // biggest cash-flow problem in the trade and the reason builders
+            // don't chase is that writing the message is awkward.
+            if (invoice.isOverdue) ...<Widget>[
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => showChasePaymentSheet(context, invoice),
+                  icon: const Icon(Icons.campaign_outlined),
+                  label: Text(
+                    invoice.remindersSent == 0
+                        ? 'Chase payment · ${invoice.daysOverdue} days overdue'
+                        : 'Chase again · ${invoice.remindersSent} sent',
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.of(context).danger,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
               ),
-            if (!invoice.isPaid && !invoice.isDraft) const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: company == null
-                    ? null
-                    : () => showPdfActions(
-                          context,
-                          ref,
-                          buildBytes: () => DocumentPdf.invoice(
-                            invoice: invoice,
-                            company: company!,
-                          ),
-                          fileName: '${invoice.numberFormatted}.pdf',
-                          shareSubject:
-                              'Invoice ${invoice.numberFormatted} from ${company!.companyName}',
-                          customerEmail: customer?.email,
-                          customerPhone: customer?.phone,
-                        ),
-                icon: const Icon(Icons.picture_as_pdf_outlined),
-                label: const Text('Share PDF'),
-              ),
+              const SizedBox(height: 10),
+            ],
+            Row(
+              children: <Widget>[
+                if (!invoice.isPaid && !invoice.isDraft)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          showRecordPaymentSheet(context, ref, invoice),
+                      icon: const Icon(Icons.payments_outlined),
+                      label: const Text('Payment'),
+                    ),
+                  ),
+                if (!invoice.isPaid && !invoice.isDraft)
+                  const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: company == null
+                        ? null
+                        : () => showPdfActions(
+                              context,
+                              ref,
+                              buildBytes: () => DocumentPdf.invoice(
+                                invoice: invoice,
+                                company: company!,
+                              ),
+                              fileName: '${invoice.numberFormatted}.pdf',
+                              shareSubject:
+                                  'Invoice ${invoice.numberFormatted} from ${company!.companyName}',
+                              customerEmail: customer?.email,
+                              customerPhone: customer?.phone,
+                            ),
+                    icon: const Icon(Icons.picture_as_pdf_outlined),
+                    label: const Text('Share PDF'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

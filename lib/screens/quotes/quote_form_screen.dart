@@ -1,20 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/flow/save_outcome.dart';
+import '../../core/telemetry/telemetry.dart';
 import '../../models/company_profile.dart';
 import '../../models/customer.dart';
 import '../../models/enums.dart';
 import '../../models/job.dart';
 import '../../models/line_item.dart';
 import '../../models/quote.dart';
+import '../../models/subscription.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/entity_pickers.dart';
 import '../../widgets/line_items_editor.dart';
+import '../../widgets/next_step_sheet.dart';
 import '../../widgets/ui_helpers.dart';
+import '../../widgets/upgrade_prompt.dart';
 
 /// Create or edit a quotation.
 class QuoteFormScreen extends ConsumerStatefulWidget {
@@ -117,9 +121,16 @@ class _QuoteFormScreenState extends ConsumerState<QuoteFormScreen> {
       showSnack(context, 'Add at least one line item.', error: true);
       return;
     }
+    if (!_isEdit &&
+        !await ensureCanCreate(context, ref, LimitedResource.documents)) {
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       final repo = ref.read(quoteRepositoryProvider);
+      late final SaveOutcome outcome;
+
       if (_isEdit) {
         final Quote? existing =
             ref.read(quoteProvider(widget.quoteId!)).valueOrNull;
@@ -138,9 +149,14 @@ class _QuoteFormScreenState extends ConsumerState<QuoteFormScreen> {
           notes: _notes.text.trim(),
           updatedAt: DateTime.now(),
         ));
-        if (mounted) showSnack(context, 'Quote updated.');
+        outcome = SaveOutcome(
+          kind: EntityKind.quote,
+          id: widget.quoteId!,
+          label: existing.numberFormatted,
+          wasEdit: true,
+        );
       } else {
-        await repo.create(Quote(
+        final String id = await repo.create(Quote(
           id: '',
           ownerId: '',
           number: 0,
@@ -157,9 +173,20 @@ class _QuoteFormScreenState extends ConsumerState<QuoteFormScreen> {
           status: _status,
           notes: _notes.text.trim(),
         ));
-        if (mounted) showSnack(context, 'Quote created.');
+        Telemetry.documentCreated('quote', lineItems: _items.length);
+        outcome = SaveOutcome(
+          kind: EntityKind.quote,
+          id: id,
+          label: 'Quotation for $_customerName',
+          customerId: _customerId,
+          customerName: _customerName,
+          jobId: _jobId,
+          jobTitle: _jobTitle,
+        );
       }
-      if (mounted) context.pop();
+      if (!mounted) return;
+      showSnack(context, outcome.confirmation);
+      await completeSave(context, outcome);
     } catch (e) {
       if (mounted) showSnack(context, 'Could not save: $e', error: true);
     } finally {

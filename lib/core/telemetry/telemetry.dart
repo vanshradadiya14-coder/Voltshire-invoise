@@ -176,4 +176,11 @@ enum AppEvent {
   purchaseCompleted,
   purchaseFailed,
   purchaseRestored,
+  // Trade workflow
+  priceItemUsed,
+  variationRecorded,
+  variationApproved,
+  paymentStageInvoiced,
+  paymentReminderSent,
+  nextStepTaken,
 }

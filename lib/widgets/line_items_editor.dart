@@ -4,7 +4,10 @@ import '../core/utils/calculations.dart';
 import '../core/utils/formatters.dart';
 import '../core/utils/validators.dart';
 import '../models/line_item.dart';
+import '../models/trade_enums.dart';
+import '../theme/app_spacing.dart';
 import 'app_text_field.dart';
+import 'price_list_picker.dart';
 
 /// An editable list of [LineItem]s with a running totals footer. Used by both
 /// the quote and invoice forms.
@@ -14,6 +17,7 @@ class LineItemsEditor extends StatelessWidget {
     required this.onChanged,
     required this.currencySymbol,
     required this.defaultVat,
+    this.showCategories = false,
     super.key,
   });
 
@@ -21,6 +25,12 @@ class LineItemsEditor extends StatelessWidget {
   final ValueChanged<List<LineItem>> onChanged;
   final String currencySymbol;
   final double defaultVat;
+
+  /// Surfaces the labour/materials category on each row.
+  ///
+  /// Only worth showing when CIS applies — for a homeowner invoice the
+  /// category is set but irrelevant, and displaying it is clutter.
+  final bool showCategories;
 
   Future<void> _editItem(BuildContext context, {int? index}) async {
     final LineItem? result = await showModalBottomSheet<LineItem>(
@@ -42,6 +52,17 @@ class LineItemsEditor extends StatelessWidget {
     onChanged(next);
   }
 
+  /// Adds one or more saved prices in a single pass.
+  ///
+  /// Multi-select matters: a bathroom refit is eight saved lines, and picking
+  /// them one at a time through a sheet that closes each time is exactly the
+  /// tedium the price list exists to remove.
+  Future<void> _addFromPriceList(BuildContext context) async {
+    final List<LineItem>? picked = await showPriceListPicker(context);
+    if (picked == null || picked.isEmpty) return;
+    onChanged(<LineItem>[...items, ...picked]);
+  }
+
   void _remove(int index) {
     final List<LineItem> next = <LineItem>[...items]..removeAt(index);
     onChanged(next);
@@ -59,10 +80,28 @@ class LineItemsEditor extends StatelessWidget {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: Center(
-                child: Text('No items yet. Add your first line item.',
+              child: Column(
+                children: <Widget>[
+                  Icon(
+                    Icons.playlist_add,
+                    size: 30,
+                    color: theme.colorScheme.onSurfaceVariant
+                        .withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: Insets.sm),
+                  Text(
+                    'No items yet',
                     style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Pull from your price list, or type one in.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ],
               ),
             ),
           )
@@ -76,6 +115,7 @@ class LineItemsEditor extends StatelessWidget {
                   _ItemTile(
                     item: items[i],
                     symbol: currencySymbol,
+                    showCategory: showCategories,
                     onEdit: () => _editItem(context, index: i),
                     onDelete: () => _remove(i),
                   ),
@@ -83,13 +123,33 @@ class LineItemsEditor extends StatelessWidget {
               ],
             ),
           ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: () => _editItem(context),
-          icon: const Icon(Icons.add),
-          label: const Text('Add item'),
+        const SizedBox(height: Insets.md),
+        Row(
+          children: <Widget>[
+            // Primary, because reusing a saved price is faster than typing and
+            // is what a builder should reach for first.
+            Expanded(
+              child: FilledButton.tonalIcon(
+                onPressed: () => _addFromPriceList(context),
+                icon: const Icon(Icons.list_alt, size: 19),
+                label: const Text('Price list'),
+                style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
+              ),
+            ),
+            const SizedBox(width: Insets.md),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _editItem(context),
+                icon: const Icon(Icons.add, size: 19),
+                label: const Text('Custom'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 46),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: Insets.md),
         _TotalsFooter(totals: totals, symbol: currencySymbol),
       ],
     );
@@ -102,23 +162,55 @@ class _ItemTile extends StatelessWidget {
     required this.symbol,
     required this.onEdit,
     required this.onDelete,
+    this.showCategory = false,
   });
 
   final LineItem item;
   final String symbol;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final bool showCategory;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final List<String> meta = <String>[
-      '${Formatters.number(item.quantity, decimals: item.quantity.truncateToDouble() == item.quantity ? 0 : 2)} × ${Formatters.money(item.unitPrice, symbol: symbol)}',
+      '${Formatters.number(item.quantity, decimals: item.quantity.truncateToDouble() == item.quantity ? 0 : 2)}${item.unit == PriceUnit.each ? '' : ' ${item.unit.short}'} × ${Formatters.money(item.unitPrice, symbol: symbol)}',
       if (item.discountPercent > 0) '-${Formatters.percent(item.discountPercent)}',
       if (item.vatPercent > 0) 'VAT ${Formatters.percent(item.vatPercent)}',
     ];
     return ListTile(
-      title: Text(item.description.isEmpty ? '(no description)' : item.description),
+      title: Row(
+        children: <Widget>[
+          Flexible(
+            child: Text(
+              item.description.isEmpty ? '(no description)' : item.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // Only shown under CIS, where labour vs materials decides the
+          // deduction and therefore what actually gets paid.
+          if (showCategory) ...<Widget>[
+            const SizedBox(width: Insets.sm),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: item.category.color.withValues(alpha: 0.16),
+                borderRadius: Radii.chip,
+              ),
+              child: Text(
+                item.category.label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: item.category.color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 9.5,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
       subtitle: Text(meta.join('  ·  '), style: theme.textTheme.bodySmall),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -201,11 +293,15 @@ class _ItemEditorSheetState extends State<_ItemEditorSheet> {
   late final TextEditingController _unitPrice;
   late final TextEditingController _discount;
   late final TextEditingController _vat;
+  late LineCategory _category;
+  late PriceUnit _unit;
 
   @override
   void initState() {
     super.initState();
     final LineItem? it = widget.item;
+    _category = it?.category ?? LineCategory.labour;
+    _unit = it?.unit ?? PriceUnit.each;
     _description = TextEditingController(text: it?.description ?? '');
     _quantity = TextEditingController(
         text: (it?.quantity ?? 1).toString().replaceAll(RegExp(r'\.0$'), ''));
@@ -235,6 +331,8 @@ class _ItemEditorSheetState extends State<_ItemEditorSheet> {
       unitPrice: parseNum(_unitPrice.text),
       discountPercent: Calc.clampPercent(parseNum(_discount.text)),
       vatPercent: Calc.clampPercent(parseNum(_vat.text)),
+      category: _category,
+      unit: _unit,
     ));
   }
 
@@ -264,6 +362,39 @@ class _ItemEditorSheetState extends State<_ItemEditorSheet> {
                 textCapitalization: TextCapitalization.sentences,
                 validator: (String? v) =>
                     Validators.required(v, field: 'Description'),
+              ),
+              const SizedBox(height: 12),
+              // Category drives the CIS labour/materials split. It is always
+              // captured — even on a homeowner invoice where it is not used —
+              // because a job can be re-billed to a contractor later, and
+              // back-filling categories across a whole invoice is miserable.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Category',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+              const SizedBox(height: Insets.sm),
+              Wrap(
+                spacing: Insets.sm,
+                runSpacing: Insets.sm,
+                children: LineCategory.values.map((LineCategory c) {
+                  final bool selected = c == _category;
+                  return ChoiceChip(
+                    label: Text(c.label),
+                    avatar: Icon(
+                      c.icon,
+                      size: 15,
+                      color: selected ? c.color : null,
+                    ),
+                    selected: selected,
+                    selectedColor: c.color.withValues(alpha: 0.18),
+                    onSelected: (_) => setState(() => _category = c),
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 12),
               Row(

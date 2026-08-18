@@ -76,7 +76,7 @@ class Shadows {
 
   static List<BoxShadow> low(Brightness b) => <BoxShadow>[
         BoxShadow(
-          color: Colors.black.withValues(alpha: b == Brightness.dark ? 0.34 : 0.05),
+          color: Colors.black.withValues(alpha: b == Brightness.dark ? 0.34 : 0.04),
           blurRadius: 8,
           offset: const Offset(0, 2),
         ),
@@ -84,9 +84,17 @@ class Shadows {
 
   static List<BoxShadow> medium(Brightness b) => <BoxShadow>[
         BoxShadow(
-          color: Colors.black.withValues(alpha: b == Brightness.dark ? 0.42 : 0.08),
+          color: Colors.black.withValues(alpha: b == Brightness.dark ? 0.42 : 0.07),
           blurRadius: 18,
           offset: const Offset(0, 6),
+        ),
+      ];
+
+  static List<BoxShadow> glow(Color accent, {double opacity = 0.25, double radius = 16}) => <BoxShadow>[
+        BoxShadow(
+          color: accent.withValues(alpha: opacity),
+          blurRadius: radius,
+          offset: const Offset(0, 4),
         ),
       ];
 }

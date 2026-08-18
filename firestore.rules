@@ -166,6 +166,34 @@ service cloud.firestore {
       allow update: if canUpdate();
     }
 
+    // ---- Trade tools -----------------------------------------------------
+
+    match /price_items/{docId} {
+      allow read, delete: if ownsExisting();
+      allow create: if canCreate()
+        && moneyOk('unitPrice') && stringOk('description', 300);
+      allow update: if canUpdate()
+        && moneyOk('unitPrice') && stringOk('description', 300);
+    }
+
+    match /variations/{docId} {
+      allow read, delete: if ownsExisting();
+      allow create: if canCreate()
+        && moneyOk('amount') && moneyOk('netTotal')
+        && stringOk('description', 500);
+      allow update: if canUpdate()
+        && moneyOk('amount') && moneyOk('netTotal')
+        && stringOk('description', 500);
+    }
+
+    match /payment_stages/{docId} {
+      allow read, delete: if ownsExisting();
+      allow create: if canCreate()
+        && moneyOk('fixedAmount') && stringOk('label', 120);
+      allow update: if canUpdate()
+        && moneyOk('fixedAmount') && stringOk('label', 120);
+    }
+
     // ---- Default deny ----------------------------------------------------
 
     match /{document=**} {

@@ -34,6 +34,13 @@ import '../../widgets/upgrade_prompt.dart';
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
+  static String _greeting() {
+    final int hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
@@ -62,7 +69,13 @@ class DashboardScreen extends ConsumerWidget {
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  const Text('Dashboard'),
+                  Text(
+                    _greeting(),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
                   if (company.isNotEmpty)
                     Text(
                       company,
@@ -70,6 +83,7 @@ class DashboardScreen extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                 ],
@@ -84,12 +98,12 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ),
                 IconButton(
-                  icon: const Icon(Icons.search),
+                  icon: const Icon(Icons.search_rounded),
                   tooltip: 'Search',
                   onPressed: () => context.push(Routes.search),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.tune),
+                  icon: const Icon(Icons.tune_rounded),
                   tooltip: 'Customise dashboard',
                   onPressed: () => context.push(Routes.customizeDashboard),
                 ),
@@ -98,7 +112,7 @@ class DashboardScreen extends ConsumerWidget {
 
             const SliverToBoxAdapter(child: SizedBox(height: Insets.xs)),
             const SliverToBoxAdapter(child: PeriodSelector()),
-            const SliverToBoxAdapter(child: SizedBox(height: Insets.lg)),
+            const SliverToBoxAdapter(child: SizedBox(height: Insets.md)),
 
             if (metrics.isLoading)
               const SliverFillRemaining(

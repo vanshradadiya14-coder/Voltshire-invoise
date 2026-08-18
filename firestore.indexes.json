@@ -31,6 +31,24 @@
         { "fieldPath": "ownerId", "order": "ASCENDING" },
         { "fieldPath": "nameLower", "order": "ASCENDING" }
       ]
+    },
+    {
+      "//": "PriceItemRepository.clearSeeded(): ownerId == uid AND isSeeded",
+      "collectionGroup": "price_items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerId", "order": "ASCENDING" },
+        { "fieldPath": "isSeeded", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "//": "PaymentStageRepository job queries: ownerId == uid AND jobId",
+      "collectionGroup": "payment_stages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerId", "order": "ASCENDING" },
+        { "fieldPath": "jobId", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

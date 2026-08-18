@@ -183,7 +183,10 @@ class UsageLimits {
     jobs: 5,
     documents: 5,
     photos: 10,
-    storedFiles: 0,
+    // Free gets a small allowance rather than zero: a hard 0 silently makes
+    // the whole Documents section unusable, which reads as a broken feature
+    // rather than an upgrade prompt.
+    storedFiles: 5,
   );
 
   static const UsageLimits unlimitedTier = UsageLimits(

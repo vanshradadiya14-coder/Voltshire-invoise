@@ -4,10 +4,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/flow/save_outcome.dart';
+import '../../core/telemetry/telemetry.dart';
 import '../../core/utils/validators.dart';
 import '../../models/expense.dart';
 import '../../models/job.dart';
@@ -15,6 +16,7 @@ import '../../providers/data_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/entity_pickers.dart';
+import '../../widgets/next_step_sheet.dart';
 import '../../widgets/ui_helpers.dart';
 
 /// Create or edit an expense, optionally with a receipt photo and job link.
@@ -108,14 +110,32 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
         receiptPath: _existingReceiptPath,
         date: _date,
       );
+      late final SaveOutcome outcome;
       if (_isEdit) {
         await repo.update(data, receipt: _receipt);
-        if (mounted) showSnack(context, 'Expense updated.');
+        outcome = SaveOutcome(
+          kind: EntityKind.expense,
+          id: widget.expenseId!,
+          label: _description.text.trim(),
+          wasEdit: true,
+        );
       } else {
-        await repo.create(data, receipt: _receipt);
-        if (mounted) showSnack(context, 'Expense added.');
+        final String id = await repo.create(data, receipt: _receipt);
+        Telemetry.logEvent(AppEvent.expenseRecorded,
+            <String, Object>{'category': _category});
+        outcome = SaveOutcome(
+          kind: EntityKind.expense,
+          id: id,
+          label: _description.text.trim().isEmpty
+              ? _category
+              : _description.text.trim(),
+          jobId: _jobId,
+          jobTitle: _jobTitle,
+        );
       }
-      if (mounted) context.pop();
+      if (!mounted) return;
+      showSnack(context, outcome.confirmation);
+      await completeSave(context, outcome);
     } catch (e) {
       if (mounted) showSnack(context, 'Could not save: $e', error: true);
     } finally {

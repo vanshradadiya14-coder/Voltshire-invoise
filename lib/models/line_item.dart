@@ -1,5 +1,6 @@
 import '../core/utils/calculations.dart';
 import '../core/utils/firestore_utils.dart';
+import 'trade_enums.dart';
 
 /// A single line on a quote or invoice.
 ///
@@ -13,6 +14,8 @@ class LineItem {
     this.unitPrice = 0,
     this.discountPercent = 0,
     this.vatPercent = 0,
+    this.category = LineCategory.other,
+    this.unit = PriceUnit.each,
   });
 
   final String description;
@@ -25,6 +28,18 @@ class LineItem {
   /// Per-line VAT rate as a percentage (0–100).
   final double vatPercent;
 
+  /// What this line is for. Drives the CIS labour/materials split and groups
+  /// the line on the PDF.
+  ///
+  /// Defaults to [LineCategory.other], which is *not* CIS-deductible — so a
+  /// legacy line item with no stored category settles to exactly the same
+  /// figure it always did.
+  final LineCategory category;
+
+  /// The unit this was priced in, carried over from the price list so the
+  /// document can read "2 days @ £280/day".
+  final PriceUnit unit;
+
   // ---- Derived amounts (never stored; always recomputed) ----
 
   double get net => Calc.lineNet(quantity, unitPrice);
@@ -36,12 +51,26 @@ class LineItem {
   double get total =>
       Calc.lineTotal(quantity, unitPrice, discountPercent, vatPercent);
 
+  /// True when CIS is withheld from this line.
+  bool get isCisDeductible => category.cisDeductible;
+
+  /// "2 days @ £280.00" — reads naturally on the document.
+  String quantityLabel(String symbol) {
+    final String qty = quantity == quantity.roundToDouble()
+        ? quantity.toStringAsFixed(0)
+        : quantity.toStringAsFixed(2);
+    final String suffix = unit == PriceUnit.each ? '' : ' ${unit.short}';
+    return '$qty$suffix @ $symbol${unitPrice.toStringAsFixed(2)}';
+  }
+
   LineItem copyWith({
     String? description,
     double? quantity,
     double? unitPrice,
     double? discountPercent,
     double? vatPercent,
+    LineCategory? category,
+    PriceUnit? unit,
   }) {
     return LineItem(
       description: description ?? this.description,
@@ -49,6 +78,8 @@ class LineItem {
       unitPrice: unitPrice ?? this.unitPrice,
       discountPercent: discountPercent ?? this.discountPercent,
       vatPercent: vatPercent ?? this.vatPercent,
+      category: category ?? this.category,
+      unit: unit ?? this.unit,
     );
   }
 
@@ -59,6 +90,8 @@ class LineItem {
       unitPrice: asDouble(map['unitPrice']),
       discountPercent: asDouble(map['discountPercent']),
       vatPercent: asDouble(map['vatPercent']),
+      category: LineCategory.fromName(map['category'] as String?),
+      unit: PriceUnit.fromName(map['unit'] as String?),
     );
   }
 
@@ -68,6 +101,8 @@ class LineItem {
         'unitPrice': unitPrice,
         'discountPercent': discountPercent,
         'vatPercent': vatPercent,
+        'category': category.name,
+        'unit': unit.name,
       };
 }
 

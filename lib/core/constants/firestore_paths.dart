@@ -13,6 +13,17 @@ class FirestorePaths {
 
   /// Recycle bin for deleted records, recoverable for 30 days.
   static const String trash = 'trash';
+
+  // ---- Trade tools ----
+
+  /// The builder's saved price list.
+  static const String priceItems = 'price_items';
+
+  /// Extra work agreed after a job started.
+  static const String variations = 'variations';
+
+  /// Deposit and staged-payment schedules on jobs.
+  static const String paymentStages = 'payment_stages';
   static const String customers = 'customers';
   static const String jobs = 'jobs';
   static const String quotes = 'quotes';

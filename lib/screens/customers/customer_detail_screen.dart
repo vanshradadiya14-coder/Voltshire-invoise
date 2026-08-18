@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/firestore_paths.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/customer.dart';
 import '../../models/invoice.dart';
@@ -9,6 +10,7 @@ import '../../models/job.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/trash_providers.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/async_value_view.dart';
 import '../../widgets/status_chip.dart';
@@ -20,17 +22,25 @@ class CustomerDetailScreen extends ConsumerWidget {
   final String customerId;
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final Customer? c = ref.read(customerProvider(customerId)).valueOrNull;
     final bool ok = await showConfirmDialog(
       context,
       title: 'Delete customer?',
-      message: 'This removes the customer record. Jobs and invoices are kept.',
+      message: 'This removes the customer record. Jobs and invoices are kept, '
+          'and you can restore the customer from Recently deleted for 30 days.',
       confirmLabel: 'Delete',
       destructive: true,
     );
     if (!ok) return;
-    await ref.read(customerRepositoryProvider).delete(customerId);
+    final bool binned = await trashRecord(
+      ref,
+      collection: FirestorePaths.customers,
+      docId: customerId,
+      label: c?.name.isNotEmpty ?? false ? c!.name : 'Customer',
+    );
+    if (!binned) await ref.read(customerRepositoryProvider).delete(customerId);
     if (context.mounted) {
-      showSnack(context, 'Customer deleted.');
+      showSnack(context, 'Customer deleted. Recoverable for 30 days.');
       context.pop();
     }
   }
@@ -83,24 +93,37 @@ class CustomerDetailScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+
+              // Invoicing is the reason most customers get opened, so it gets
+              // the full width and the strongest emphasis.
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => context
+                      .push('${Routes.invoiceNew}?customerId=$customerId'),
+                  icon: const Icon(Icons.receipt_long),
+                  label: const Text('Create invoice'),
+                ),
+              ),
+              const SizedBox(height: 10),
               Row(
                 children: <Widget>[
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () =>
-                          context.push('${Routes.jobNew}?customerId=$customerId'),
-                      icon: const Icon(Icons.add),
-                      label: const Text('New job'),
+                      onPressed: () => context
+                          .push('${Routes.quoteNew}?customerId=$customerId'),
+                      icon: const Icon(Icons.description_outlined, size: 19),
+                      label: const Text('Quote'),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: FilledButton.icon(
+                    child: OutlinedButton.icon(
                       onPressed: () =>
-                          context.push('${Routes.invoiceNew}?customerId=$customerId'),
-                      icon: const Icon(Icons.receipt_long),
-                      label: const Text('New invoice'),
+                          context.push('${Routes.jobNew}?customerId=$customerId'),
+                      icon: const Icon(Icons.construction_outlined, size: 19),
+                      label: const Text('New job'),
                     ),
                   ),
                 ],
@@ -136,12 +159,39 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              customer.name,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w700),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  customer.name,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                // Makes the tax treatment visible at a glance, so nobody is
+                // surprised by a CIS deduction appearing on the invoice.
+                if (customer.type.isBusiness)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      customer.tradeSummary,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                if (customer.contactName.trim().isNotEmpty)
+                  Text(
+                    customer.contactName,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+              ],
             ),
           ),
           if (customer.phone.isNotEmpty)

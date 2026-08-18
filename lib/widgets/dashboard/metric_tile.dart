@@ -39,78 +39,104 @@ class MetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
     final AppStatusColors c = AppColors.of(context);
-    final Color tone = accent ?? theme.colorScheme.primary;
+    final Color tone = accent != null
+        ? c.resolve(accent!)
+        : theme.colorScheme.primary;
 
     final String value = metric.isCurrency
         ? Formatters.money(metric.current, symbol: symbol)
         : '${metric.current.toStringAsFixed(0)}${suffix ?? ''}';
 
-    return Card(
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? theme.colorScheme.surfaceContainer : Colors.white,
         borderRadius: Radii.card,
-        child: Padding(
-          padding: compact ? Insets.cardTight : Insets.card,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Container(
-                    padding: const EdgeInsets.all(Insets.sm),
-                    decoration: BoxDecoration(
-                      color: tone.withValues(alpha: 0.14),
-                      borderRadius: Radii.chip,
+        border: Border.all(
+          color: isDark
+              ? tone.withValues(alpha: 0.18)
+              : theme.colorScheme.outlineVariant.withValues(alpha: 0.75),
+          width: 1,
+        ),
+        boxShadow: isDark
+            ? Shadows.glow(tone, opacity: 0.06, radius: 10)
+            : Shadows.low(theme.brightness),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: Radii.card,
+          child: Padding(
+            padding: compact ? Insets.cardTight : Insets.card,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.all(Insets.sm),
+                      decoration: BoxDecoration(
+                        color: tone.withValues(alpha: isDark ? 0.20 : 0.12),
+                        borderRadius: Radii.chip,
+                        border: Border.all(
+                          color: tone.withValues(alpha: isDark ? 0.35 : 0.18),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(icon, color: tone, size: 18),
                     ),
-                    child: Icon(icon, color: tone, size: 18),
-                  ),
-                  const Spacer(),
-                  if (metric.hasComparison && !compact)
-                    _DeltaChip(metric: metric, colors: c),
-                ],
-              ),
-              SizedBox(height: compact ? Insets.sm : Insets.md),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  value,
-                  maxLines: 1,
-                  style: (compact
-                          ? theme.textTheme.titleLarge
-                          : theme.textTheme.headlineSmall)
-                      ?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    fontFeatures: const <FontFeature>[
-                      FontFeature.tabularFigures()
-                    ],
-                  ),
+                    const Spacer(),
+                    if (metric.hasComparison && !compact)
+                      _DeltaChip(metric: metric, colors: c),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-              if (metric.hasComparison && comparisonLabel != null && !compact)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
+                SizedBox(height: compact ? Insets.sm : Insets.md),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
                   child: Text(
-                    comparisonLabel!,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant
-                          .withValues(alpha: 0.75),
-                      fontSize: 10,
+                    value,
+                    maxLines: 1,
+                    style: (compact
+                            ? theme.textTheme.titleLarge
+                            : theme.textTheme.headlineSmall)
+                        ?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      fontFeatures: const <FontFeature>[
+                        FontFeature.tabularFigures(),
+                      ],
                     ),
                   ),
                 ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (metric.hasComparison && comparisonLabel != null && !compact)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      comparisonLabel!,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.75),
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

@@ -1,3 +1,14 @@
+import 'package:flutter/widgets.dart';
+
+/// The app's root navigator key.
+///
+/// Shared here (rather than kept private in app_router.dart) so post-save flows
+/// can present sheets on the root navigator — which survives a
+/// `pushReplacement`, unlike the form's own context, which is unmounted the
+/// moment its route is replaced.
+final GlobalKey<NavigatorState> rootNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'root');
+
 /// Centralised route path constants and helpers.
 ///
 /// Using helpers (rather than string literals scattered across the codebase)
@@ -39,6 +50,13 @@ class Routes {
   // Data safety
   static const String trash = '/settings/trash';
   static const String dataExport = '/settings/export';
+
+  // Trade tools
+  static const String priceList = '/price-list';
+
+  // Job sub-sections (full screen, outside the shell)
+  static String jobStages(String id) => '/jobs/$id/stages';
+  static String jobVariations(String id) => '/jobs/$id/variations';
 
   // ---- Builders for parameterised routes ----
   static String customerDetail(String id) => '/customers/$id';

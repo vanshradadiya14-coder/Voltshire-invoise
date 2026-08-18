@@ -30,12 +30,18 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
     final AsyncValue<List<Customer>> customers = ref.watch(customerSearchProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Customers')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(Routes.customerNew),
-        icon: const Icon(Icons.person_add_alt),
-        label: const Text('New'),
+      appBar: AppBar(
+        title: const Text('Customers'),
+        actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.person_add_alt),
+            tooltip: 'New customer',
+            onPressed: () => context.push(Routes.customerNew),
+          ),
+        ],
       ),
+      // No FAB here: the shell provides a single create button so it is always
+      // in the same place, whichever tab you are on.
       body: Column(
         children: <Widget>[
           Padding(
@@ -70,7 +76,9 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                     icon: Icons.people_outline,
                     title: 'No customers',
                     message: _search.text.isEmpty
-                        ? 'Add your first customer to get started.'
+                        ? 'Add a customer and you can quote or invoice them '
+                            'straight away. Contractors can be set up once for '
+                            'CIS and the VAT reverse charge.'
                         : 'No customers match "${_search.text}".',
                     actionLabel: _search.text.isEmpty ? 'Add customer' : null,
                     onAction: _search.text.isEmpty

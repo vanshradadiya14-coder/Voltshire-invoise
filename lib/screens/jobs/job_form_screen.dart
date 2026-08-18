@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../core/flow/save_outcome.dart';
+import '../../core/telemetry/telemetry.dart';
 import '../../core/utils/validators.dart';
 import '../../models/customer.dart';
 import '../../models/enums.dart';
 import '../../models/job.dart';
+import '../../models/subscription.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/entity_pickers.dart';
+import '../../widgets/next_step_sheet.dart';
 import '../../widgets/ui_helpers.dart';
+import '../../widgets/upgrade_prompt.dart';
 
 /// Create or edit a job. Optionally pre-selects a customer via [customerId].
 class JobFormScreen extends ConsumerStatefulWidget {
@@ -82,9 +86,16 @@ class _JobFormScreenState extends ConsumerState<JobFormScreen> {
       showSnack(context, 'Please select a customer.', error: true);
       return;
     }
+    if (!_isEdit && !await ensureCanCreate(context, ref, LimitedResource.jobs)) {
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       final repo = ref.read(jobRepositoryProvider);
+      final String title = _title.text.trim();
+      late final SaveOutcome outcome;
+
       if (_isEdit) {
         final Job? existing = ref.read(jobProvider(widget.jobId!)).valueOrNull;
         if (existing == null) throw StateError('Job not found');
@@ -102,13 +113,19 @@ class _JobFormScreenState extends ConsumerState<JobFormScreen> {
           notes: _notes.text.trim(),
           updatedAt: DateTime.now(),
         ));
+        outcome = SaveOutcome(
+          kind: EntityKind.job,
+          id: widget.jobId!,
+          label: title,
+          wasEdit: true,
+        );
       } else {
-        await repo.create(Job(
+        final String id = await repo.create(Job(
           id: '',
           ownerId: '',
           customerId: _customerId!,
           customerName: _customerName,
-          title: _title.text.trim(),
+          title: title,
           siteAddress: _site.text.trim(),
           description: _description.text.trim(),
           status: _status,
@@ -116,10 +133,20 @@ class _JobFormScreenState extends ConsumerState<JobFormScreen> {
           completionDate: _completionDate,
           notes: _notes.text.trim(),
         ));
+        Telemetry.logEvent(AppEvent.jobCreated);
+        outcome = SaveOutcome(
+          kind: EntityKind.job,
+          id: id,
+          label: title,
+          customerId: _customerId,
+          customerName: _customerName,
+          jobId: id,
+          jobTitle: title,
+        );
       }
       if (!mounted) return;
-      showSnack(context, _isEdit ? 'Job updated.' : 'Job created.');
-      context.pop();
+      showSnack(context, outcome.confirmation);
+      await completeSave(context, outcome);
     } catch (e) {
       if (mounted) showSnack(context, 'Could not save: $e', error: true);
     } finally {

@@ -138,10 +138,7 @@ class DashboardPeriod {
   ) {
     // Day count, not a Duration: across a DST change the two differ by an hour
     // and the comparison window would start at the wrong time.
-    final int dayCount = DateTime(end.year, end.month, end.day)
-        .difference(DateTime(start.year, start.month, start.day))
-        .inDays
-        .clamp(1, 100000);
+    final int dayCount = _wholeDaysBetween(start, end).clamp(1, 100000);
     return DashboardPeriod(
       range: range,
       start: start,
@@ -154,10 +151,19 @@ class DashboardPeriod {
   Duration get length => end.difference(start);
 
   /// Whole calendar days in the window. Calendar-based so a DST change does
-  /// not report a 30-day month as 29 days and 23 hours.
-  int get days => DateTime(end.year, end.month, end.day)
-      .difference(DateTime(start.year, start.month, start.day))
-      .inDays;
+  /// not report a 31-day month as 30 days and 23 hours.
+  int get days => _wholeDaysBetween(start, end);
+
+  /// Calendar days between two local dates, ignoring time-of-day.
+  ///
+  /// The dates are re-anchored in UTC before subtracting: local midnights an
+  /// hour apart across a DST boundary make Duration.inDays truncate (a March
+  /// month spans 743 hours, which truncates to 30 days, not 31). UTC has no
+  /// clock changes, so the difference is always a whole number of days.
+  static int _wholeDaysBetween(DateTime from, DateTime to) =>
+      DateTime.utc(to.year, to.month, to.day)
+          .difference(DateTime.utc(from.year, from.month, from.day))
+          .inDays;
 
   bool contains(DateTime? date) =>
       date != null && !date.isBefore(start) && date.isBefore(end);

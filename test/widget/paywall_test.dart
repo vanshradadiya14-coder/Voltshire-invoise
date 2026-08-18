@@ -90,6 +90,10 @@ void main() {
     await t.pumpWidget(wrap(const PaywallScreen()));
     await t.pumpAndSettle();
 
+    // The plan list scrolls; bring the Business card into view before tapping
+    // so the gesture lands on it in the short test viewport.
+    await t.scrollUntilVisible(find.text('£249.00'), 120);
+    await t.pumpAndSettle();
     await t.tap(find.text('£249.00'));
     await t.pumpAndSettle();
 

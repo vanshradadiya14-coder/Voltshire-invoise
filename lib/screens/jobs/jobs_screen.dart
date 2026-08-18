@@ -27,11 +27,15 @@ class _JobsScreenState extends ConsumerState<JobsScreen> {
     final AsyncValue<List<Job>> jobs = ref.watch(jobsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Jobs')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(Routes.jobNew),
-        icon: const Icon(Icons.add),
-        label: const Text('New job'),
+      appBar: AppBar(
+        title: const Text('Jobs'),
+        actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'New job',
+            onPressed: () => context.push(Routes.jobNew),
+          ),
+        ],
       ),
       body: Column(
         children: <Widget>[
@@ -73,7 +77,8 @@ class _JobsScreenState extends ConsumerState<JobsScreen> {
                     icon: Icons.construction_outlined,
                     title: 'No jobs',
                     message: _filter == null
-                        ? 'Create your first job to track work.'
+                        ? 'A job holds everything for one piece of work — the '
+                            'quote, photos, extras, expenses and the invoice.'
                         : 'No ${_filter!.label.toLowerCase()} jobs.',
                     actionLabel: _filter == null ? 'New job' : null,
                     onAction:

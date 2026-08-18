@@ -62,7 +62,7 @@ class BuilderCrmApp extends ConsumerWidget {
 
     // Keep telemetry identity in step with auth, without a separate listener
     // widget. ref.listen inside build is the documented Riverpod pattern.
-    ref.listen(currentUidProvider, (String? _, String? uid) {
+    ref.listen<String?>(currentUidProvider, (String? _, String? uid) {
       Telemetry.setUser(uid);
     });
     ref.listen(currentTierProvider, (previous, next) {

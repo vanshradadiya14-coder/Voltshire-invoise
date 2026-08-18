@@ -52,71 +52,93 @@ class _ActionRow extends StatelessWidget {
       ActionSeverity.info => c.info,
     };
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
+    final bool isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? theme.colorScheme.surfaceContainer : Colors.white,
         borderRadius: Radii.card,
-        onTap: item.route == null ? null : () => context.push(item.route!),
-        child: Container(
-          padding: Insets.cardTight,
-          decoration: BoxDecoration(
-            color: tone.withValues(alpha: c.isDark ? 0.14 : 0.07),
-            borderRadius: Radii.card,
-            border: Border.all(color: tone.withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            children: <Widget>[
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: tone.withValues(alpha: 0.18),
-                  borderRadius: Radii.chip,
+        border: Border.all(
+          color: isDark
+              ? tone.withValues(alpha: 0.3)
+              : theme.colorScheme.outlineVariant.withValues(alpha: 0.8),
+          width: 1,
+        ),
+        boxShadow: isDark
+            ? Shadows.glow(tone, opacity: 0.08, radius: 12)
+            : Shadows.low(theme.brightness),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: Radii.card,
+          onTap: item.route == null ? null : () => context.push(item.route!),
+          child: Container(
+            padding: Insets.cardTight,
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: tone.withValues(alpha: isDark ? 0.22 : 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: tone.withValues(alpha: isDark ? 0.38 : 0.22),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(_icon(item.kind), size: 20, color: tone),
                 ),
-                child: Icon(_icon(item.kind), size: 19, color: tone),
-              ),
-              const SizedBox(width: Insets.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(
-                      item.title,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      item.subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                const SizedBox(width: Insets.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        item.title,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        item.subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              if (item.amount > 0.005) ...<Widget>[
-                const SizedBox(width: Insets.sm),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: <Widget>[
-                    Text(
-                      Formatters.money(item.amount, symbol: symbol),
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: tone,
-                        fontWeight: FontWeight.w800,
-                        fontFeatures: const <FontFeature>[
-                          FontFeature.tabularFigures()
-                        ],
+                if (item.amount > 0.005) ...<Widget>[
+                  const SizedBox(width: Insets.sm),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      Text(
+                        Formatters.money(item.amount, symbol: symbol),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: tone,
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: const <FontFeature>[
+                            FontFeature.tabularFigures(),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ],
+                const SizedBox(width: Insets.xs),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 22,
+                  color: tone.withValues(alpha: 0.8),
                 ),
               ],
-              Icon(Icons.chevron_right,
-                  size: 20, color: tone.withValues(alpha: 0.7)),
-            ],
+            ),
           ),
         ),
       ),

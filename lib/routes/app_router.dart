@@ -37,10 +37,15 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/setup/business_setup_wizard.dart';
 import '../screens/subscription/manage_subscription_screen.dart';
 import '../screens/subscription/paywall_screen.dart';
+import '../screens/trade/payment_stages_screen.dart';
+import '../screens/trade/price_list_screen.dart';
+import '../screens/trade/variations_screen.dart';
 import '../widgets/upgrade_prompt.dart';
 import 'app_routes.dart';
 
-final _rootKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+// The root navigator key is shared via app_routes.dart so post-save flows can
+// present sheets on a navigator that survives a pushReplacement.
+final _rootKey = rootNavigatorKey;
 final _dashboardKey = GlobalKey<NavigatorState>(debugLabel: 'dashboard');
 final _customersKey = GlobalKey<NavigatorState>(debugLabel: 'customers');
 final _jobsKey = GlobalKey<NavigatorState>(debugLabel: 'jobs');
@@ -198,6 +203,18 @@ final routerProvider = Provider<GoRouter>((ref) {
                         builder: (_, s) =>
                             JobPhotosScreen(jobId: s.pathParameters['id']!),
                       ),
+                      GoRoute(
+                        path: 'stages',
+                        parentNavigatorKey: _rootKey,
+                        builder: (_, s) =>
+                            PaymentStagesScreen(jobId: s.pathParameters['id']!),
+                      ),
+                      GoRoute(
+                        path: 'variations',
+                        parentNavigatorKey: _rootKey,
+                        builder: (_, s) =>
+                            VariationsScreen(jobId: s.pathParameters['id']!),
+                      ),
                     ],
                   ),
                 ],
@@ -220,6 +237,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                       customerId: s.uri.queryParameters['customerId'],
                       jobId: s.uri.queryParameters['jobId'],
                       fromQuoteId: s.uri.queryParameters['fromQuoteId'],
+                      stageId: s.uri.queryParameters['stageId'],
                     ),
                   ),
                   GoRoute(
@@ -360,6 +378,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const CustomizeDashboardScreen(),
       ),
 
+      // ---- Trade tools ----
+      GoRoute(
+        path: Routes.priceList,
+        parentNavigatorKey: _rootKey,
+        builder: (_, __) => const PriceListScreen(),
+      ),
       // ---- Data safety ----
       GoRoute(
         path: Routes.trash,

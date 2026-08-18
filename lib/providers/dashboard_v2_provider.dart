@@ -272,7 +272,10 @@ double _outstandingAsOf(_Source s, DateTime cutoff) {
             p.invoiceId == i.id && p.date != null && p.date!.isBefore(cutoff))
         .fold<double>(0, (double sum, Payment p) => sum + p.amount);
 
-    final double due = i.grandTotal - paidByThen;
+    // Measured against what the customer owes, not the gross value of the
+    // work — otherwise a CIS invoice would look permanently outstanding by
+    // the amount of tax the contractor pays directly to HMRC.
+    final double due = i.amountDue - paidByThen;
     if (due > 0.005) total += due;
   }
   return total;
@@ -291,7 +294,10 @@ double _overdueAsOf(_Source s, DateTime cutoff) {
             p.invoiceId == i.id && p.date != null && p.date!.isBefore(cutoff))
         .fold<double>(0, (double sum, Payment p) => sum + p.amount);
 
-    final double due = i.grandTotal - paidByThen;
+    // Measured against what the customer owes, not the gross value of the
+    // work — otherwise a CIS invoice would look permanently outstanding by
+    // the amount of tax the contractor pays directly to HMRC.
+    final double due = i.amountDue - paidByThen;
     if (due > 0.005) total += due;
   }
   return total;
