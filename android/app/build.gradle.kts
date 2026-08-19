@@ -5,6 +5,7 @@ plugins {
     // auto-init silently does nothing - which is how a hang in
     // Telemetry.initialise reached a phone with no crash report to show for it.
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -35,6 +36,15 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+
+            // Off deliberately. Firebase resolves its components by reflection
+            // from names listed in the merged manifest, which is exactly the
+            // pattern shrinkers break, and a stripped component surfaces as an
+            // unreadable native crash on a phone rather than a build error.
+            // This app is sideloaded for one business, so the ~15MB saved is
+            // worth far less than never debugging R8 over a USB cable again.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

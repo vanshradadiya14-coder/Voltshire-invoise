@@ -24,6 +24,12 @@ plugins {
     // Reads android/app/google-services.json and injects the project
     // resources the Firebase Android SDKs auto-initialise from.
     id("com.google.gms.google-services") version "4.4.3" apply false
+    // Required by firebase_crashlytics on Android. Without it the
+    // Crashlytics component never registers, and because firebase_core
+    // asks every registered plugin for its constants during
+    // Firebase.initializeApp, that one missing component fails the whole
+    // of Firebase - not just crash reporting.
+    id("com.google.firebase.crashlytics") version "3.0.6" apply false
 }
 
 include(":app")

@@ -90,3 +90,6 @@ unlinked_spec.ds
 
 # Scratch
 _to_delete/
+
+# Kotlin compiler session artifacts from local Android builds
+android/.kotlin/
