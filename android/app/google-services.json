@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "128975017290",
+    "project_id": "voltshire",
+    "storage_bucket": "voltshire.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:128975017290:android:1c8d46da504384ede45db3",
+        "android_client_info": {
+          "package_name": "com.example.builder_crm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkUxfg0_8J8IARLaXoM3DzbfPx284ZG0E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

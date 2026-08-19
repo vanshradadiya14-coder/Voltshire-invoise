@@ -1,15 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/date_symbol_data_local.dart';
-import 'package:intl/intl.dart';
 
+import 'core/bootstrap.dart';
 import 'core/constants/app_constants.dart';
-import 'core/errors/error_boundary.dart';
 import 'core/telemetry/telemetry.dart';
-import 'firebase/firebase_init.dart';
 import 'providers/auth_providers.dart';
 import 'providers/subscription_providers.dart';
 import 'providers/theme_provider.dart';
@@ -24,30 +18,21 @@ Future<void> main() async {
   // Telemetry.initialise) catches uncaught async errors on modern Flutter, and
   // wrapping ensureInitialized in a custom zone breaks binding assumptions.
   WidgetsFlutterBinding.ensureInitialized();
+  await _start();
+}
 
-  // Locale data so DateFormat works for en_GB (dd/MM/yyyy etc.).
-  await initializeDateFormatting();
-  Intl.defaultLocale = AppConstants.defaultLocale;
-
-  // Firebase + Firestore offline persistence.
-  await FirebaseInit.ensureInitialized();
-
-  // Crash reporting and analytics. Must come after Firebase.
-  await Telemetry.initialise();
-
-  // Replace the red screen of death with something a user can act on.
-  ErrorBoundary.install();
-
-  // Portrait-only: every screen is a single scrolling column, and landscape
-  // buys nothing on a phone while doubling the layouts to verify.
-  await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-
-  Telemetry.logEvent(AppEvent.appOpened);
-
-  runApp(const ProviderScope(child: BuilderCrmApp()));
+/// Boots the app, or shows why it could not boot.
+///
+/// Kept as its own function so the failure screen's Retry button can run the
+/// whole sequence again: calling `runApp` a second time swaps the root widget,
+/// which is exactly what should happen after, say, turning airplane mode off.
+Future<void> _start() async {
+  final StartupFailure? failure = await Bootstrap.run();
+  runApp(
+    failure == null
+        ? const ProviderScope(child: BuilderCrmApp())
+        : _StartupFailureApp(failure: failure, onRetry: _start),
+  );
 }
 
 /// Root widget. Shows a splash until the first auth state is known, then hands
@@ -163,6 +148,116 @@ class _Splash extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Shown when startup could not finish.
+///
+/// The alternative is the Android launch icon sitting there indefinitely, with
+/// no way to tell a broken build from a slow one. [StartupFailure.detail] is
+/// deliberately on screen and selectable: on a phone with no cable attached it
+/// is usually the only diagnostic anyone will ever get.
+class _StartupFailureApp extends StatefulWidget {
+  const _StartupFailureApp({required this.failure, required this.onRetry});
+
+  final StartupFailure failure;
+  final Future<void> Function() onRetry;
+
+  @override
+  State<_StartupFailureApp> createState() => _StartupFailureAppState();
+}
+
+class _StartupFailureAppState extends State<_StartupFailureApp> {
+  bool _retrying = false;
+
+  Future<void> _retry() async {
+    setState(() => _retrying = true);
+    await widget.onRetry();
+    // A successful retry calls runApp again, which replaces this widget and
+    // leaves this State defunct — so check before touching it.
+    if (mounted) setState(() => _retrying = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      home: Builder(
+        builder: (BuildContext context) {
+          final ThemeData theme = Theme.of(context);
+          return Scaffold(
+            body: SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const Icon(
+                        Icons.cloud_off_rounded,
+                        size: 52,
+                        color: Color(0xFFA9700A),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        '${AppConstants.appName} could not start',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        widget.failure.timedOut
+                            ? 'The app could not reach its database. Check '
+                                'your internet connection, then try again.'
+                            : 'Something went wrong while setting the app up. '
+                                'Your data is safe.',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      FilledButton.icon(
+                        onPressed: _retrying ? null : _retry,
+                        icon: _retrying
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.refresh),
+                        label: Text(_retrying ? 'Trying again' : 'Try again'),
+                      ),
+                      const SizedBox(height: 32),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: SelectableText(
+                          widget.failure.detail,
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.4,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

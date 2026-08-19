@@ -1,5 +1,10 @@
 plugins {
     id("com.android.application")
+    // Without this, google-services.json is never read, so Analytics and
+    // Crashlytics find no google_app_id at process start and their native
+    // auto-init silently does nothing - which is how a hang in
+    // Telemetry.initialise reached a phone with no crash report to show for it.
+    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }

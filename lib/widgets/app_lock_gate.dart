@@ -48,7 +48,14 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
 
   Future<void> _evaluate() async {
     final AppLockService svc = ref.read(appLockServiceProvider);
-    final bool needed = await svc.shouldPrompt();
+    // Time-limited on purpose. shared_preferences answers over a platform
+    // channel, and while this gate is deciding it holds a blank screen over
+    // the whole app - so a channel that never answers would not fail, it
+    // would just leave the app looking dead. Defaulting to unlocked is the
+    // safe end: the lock is a convenience over an already unlocked phone.
+    final bool needed = await svc
+        .shouldPrompt()
+        .timeout(const Duration(seconds: 5), onTimeout: () => false);
     if (!mounted) return;
 
     setState(() {
