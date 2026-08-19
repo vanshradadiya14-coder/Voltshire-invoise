@@ -52,21 +52,25 @@ jobs:
           sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' "$app"
           sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/' "$app"
           # Some plugins pin an older compileSdk, so the app-level bump alone is
-          # not enough. Added only when absent.
+          # not enough. Added only when absent. Built with echo, one line per
+          # call, rather than a heredoc: a heredoc body sits at column 0, which
+          # is less indented than this block scalar's own indentation - YAML
+          # then reads the block as ending right there and the workflow fails
+          # to parse at all, before anything runs.
           if ! grep -q 'compileSdkVersion(36)' "$proj"; then
-            cat >> "$proj" <<'GRADLE'
-
-subprojects {
-    if (!state.executed) {
-        afterEvaluate {
-            val androidExtension = project.extensions.findByName("android")
-            if (androidExtension is com.android.build.gradle.BaseExtension) {
-                androidExtension.compileSdkVersion(36)
-            }
-        }
-    }
-}
-GRADLE
+            {
+              echo ""
+              echo "subprojects {"
+              echo "    if (!state.executed) {"
+              echo "        afterEvaluate {"
+              echo "            val androidExtension = project.extensions.findByName(\"android\")"
+              echo "            if (androidExtension is com.android.build.gradle.BaseExtension) {"
+              echo "                androidExtension.compileSdkVersion(36)"
+              echo "            }"
+              echo "        }"
+              echo "    }"
+              echo "}"
+            } >> "$proj"
           fi
           grep -E 'Sdk' "$app" || true
 
