@@ -100,10 +100,24 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Generate launcher icon and splash screen
+      - name: Generate launcher icon and splash screen (Android only)
         run: |
+          # ios/ in this repo is a partial scaffold (no AppIcon.appiconset, no
+          # Xcode project) - it exists only so lib/firebase/firebase_options.dart
+          # and GoogleService-Info.plist are ready for whenever a full iOS build
+          # is set up on a Mac. pubspec.yaml's icon/splash config targets iOS and
+          # web too, which fails here: flutter_launcher_icons tried to overwrite
+          # an iOS icon file that does not exist and the whole step exit-255'd.
+          # This build only needs Android, so ios/web generation is turned off
+          # for this run alone, on a working copy - the committed pubspec.yaml
+          # is untouched, so `dart run flutter_launcher_icons` still does the
+          # full set locally once a real iOS scaffold exists.
+          cp pubspec.yaml pubspec.yaml.bak
+          sed -i 's/^  ios: true/  ios: false/' pubspec.yaml
+          sed -i 's/^    generate: true/    generate: false/' pubspec.yaml
           dart run flutter_launcher_icons
           dart run flutter_native_splash:create
+          mv pubspec.yaml.bak pubspec.yaml
 
       - name: Build the release APK
         # RevenueCat's public SDK key is safe in a client binary (it can only
